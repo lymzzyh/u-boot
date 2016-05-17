@@ -25,6 +25,12 @@ struct sunxi_tzpc {
 
 #define SUN6I_TZPC_DECPORT0_RTC	(1 << 1)
 
+#define SUN8I_A83T_TZPC_DECPORT0_ALL	0xbe
+#define SUN8I_A83T_TZPC_DECPORT1_ALL	0x7f
+#define SUN8I_A83T_TZPC_DECPORT2_ALL	0x10
+/* The Secure RAM size, 0x10 means 64KiB */
+#define SUN8I_A83T_TZPC_R0SIZE_64K	0x10
+
 #define SUN8I_H3_TZPC_DECPORT0_ALL  0xbe
 #define SUN8I_H3_TZPC_DECPORT1_ALL  0xff
 #define SUN8I_H3_TZPC_DECPORT2_ALL  0x7f
