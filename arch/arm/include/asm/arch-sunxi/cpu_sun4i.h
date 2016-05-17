@@ -205,6 +205,13 @@ void sunxi_board_init(void);
 void sunxi_reset(void);
 int sunxi_get_ss_bonding_id(void);
 int sunxi_get_sid(unsigned int *sid);
+
+/*
+ * Implement it as a macro, because it's used both in PSCI source code
+ * and normal U-Boot source code.
+ */
+#define sunxi_get_revision() (readl(SUNXI_SRAMC_BASE + 0x24) & 0xff)
+
 #endif /* __ASSEMBLY__ */
 
 #endif /* _SUNXI_CPU_SUN4I_H */
