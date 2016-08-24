@@ -239,6 +239,14 @@
 					     "mmc2_sample";
 		};
 
+		nand_clk: clk@01c20080 {
+			#clock-cells = <0>;
+			compatible = "allwinner,sun4i-a10-mod0-clk";
+			reg = <0x01c20080 0x4>;
+			clocks = <&osc24M>, <&pll6 1>;
+			clock-output-names = "nand";
+		};
+
 		usb_clk: clk@01c200cc {
 			#clock-cells = <1>;
 			#reset-cells = <1>;
@@ -322,6 +330,17 @@
 			#size-cells = <0>;
 		};
 
+		nfc: nand@01c03000 {
+			compatible = "allwinner,sun4i-a10-nand";
+			reg = <0x01c03000 0x1000>;
+			interrupts = <37>;
+			clocks = <&ahb1_gates 13>, <&nand_clk>;
+			clock-names = "ahb", "mod";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
 		ehci0: usb@01c1a000 {
 			compatible = "allwinner,sun8i-a23-ehci", "generic-ehci";
 			reg = <0x01c1a000 0x100>;
@@ -385,6 +404,44 @@
 				allwinner,function = "mmc2";
 				allwinner,drive = <SUN4I_PINCTRL_30_MA>;
 				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+			};
+
+			nand_pins_a: nand_base0@0 {
+				allwinner,pins = "PC0", "PC1", "PC2",
+						"PC5", "PC8", "PC9", "PC10",
+						"PC11", "PC12", "PC13", "PC14",
+						"PC15", "PC16";
+				allwinner,function = "nand0";
+				allwinner,drive = <0>;
+				allwinner,pull = <0>;
+			};
+
+			nand_cs0_pins_a: nand_cs@0 {
+				allwinner,pins = "PC4";
+				allwinner,function = "nand0";
+				allwinner,drive = <0>;
+				allwinner,pull = <0>;
+			};
+
+			nand_cs1_pins_a: nand_cs@1 {
+				allwinner,pins = "PC3";
+				allwinner,function = "nand0";
+				allwinner,drive = <0>;
+				allwinner,pull = <0>;
+			};
+
+			nand_rb0_pins_a: nand_rb@0 {
+				allwinner,pins = "PC6";
+				allwinner,function = "nand0";
+				allwinner,drive = <0>;
+				allwinner,pull = <0>;
+			};
+
+			nand_rb1_pins_a: nand_rb@1 {
+				allwinner,pins = "PC7";
+				allwinner,function = "nand0";
+				allwinner,drive = <0>;
+				allwinner,pull = <0>;
 			};
 
 			pwm0_pins: pwm0 {

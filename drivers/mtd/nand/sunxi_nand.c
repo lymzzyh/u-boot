@@ -306,10 +306,18 @@ static void sunxi_nfc_set_clk_rate(unsigned long hz)
 
 	/* gate on nand clock */
 	setbits_le32(&ccm->ahb_gate0, (1 << AHB_GATE_OFFSET_NAND0));
+#ifdef CONFIG_SUNXI_GEN_SUN6I
+	/* unassert reset for NFC */
+	setbits_le32(&ccm->ahb_reset0_cfg, 1 << AHB_RESET_OFFSET_NAND0);
+#endif
 #ifdef CONFIG_MACH_SUN9I
 	setbits_le32(&ccm->ahb_gate1, (1 << AHB_GATE_OFFSET_DMA));
 #else
 	setbits_le32(&ccm->ahb_gate0, (1 << AHB_GATE_OFFSET_DMA));
+#ifdef CONFIG_SUNXI_GEN_SUN6I
+	/* unassert reset for DMA */
+	setbits_le32(&ccm->ahb_reset0_cfg, 1 << AHB_RESET_OFFSET_DMA);
+#endif
 #endif
 }
 

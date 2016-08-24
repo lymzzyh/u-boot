@@ -539,10 +539,18 @@ void nand_deselect(void)
 		(struct sunxi_ccm_reg *)SUNXI_CCM_BASE;
 
 	clrbits_le32(&ccm->ahb_gate0, (CLK_GATE_OPEN << AHB_GATE_OFFSET_NAND0));
+#ifdef CONFIG_SUNXI_GEN_SUN6I
+	/* assert reset for NFC */
+	clrbits_le32(&ccm->ahb_reset0_cfg, 1 << AHB_RESET_OFFSET_NAND0);
+#endif
 #ifdef CONFIG_MACH_SUN9I
 	clrbits_le32(&ccm->ahb_gate1, (1 << AHB_GATE_OFFSET_DMA));
 #else
 	clrbits_le32(&ccm->ahb_gate0, (1 << AHB_GATE_OFFSET_DMA));
+#ifdef CONFIG_SUNXI_GEN_SUN6I
+	/* assert reset for DMA */
+	clrbits_le32(&ccm->ahb_reset0_cfg, 1 << AHB_RESET_OFFSET_DMA);
+#endif
 #endif
 	clrbits_le32(&ccm->nand0_clk_cfg, CCM_NAND_CTRL_ENABLE | AHB_DIV_1);
 }
