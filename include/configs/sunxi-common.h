@@ -273,7 +273,7 @@ extern int soft_i2c_gpio_scl;
 #ifdef CONFIG_VIDEO
 /* Do we want to initialize a simple FB? */
 #define CONFIG_VIDEO_DT_SIMPLEFB
-#ifdef CONFIG_MACH_SUN8I_H3
+#ifdef CONFIG_SUNXI_DE2
 #define CONFIG_VIDEO_SUNXI2
 #else
 #define CONFIG_VIDEO_SUNXI

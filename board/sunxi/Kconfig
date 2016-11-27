@@ -53,6 +53,11 @@ config SUNXI_GEN_SUN6I
 	separate ahb reset control registers, custom pmic bus, new style
 	watchdog, etc.
 
+config SUNXI_DE2
+	bool
+	---help---
+	Select this for sunxi SoCs with "DE 2.0" and, if HDMI is present,
+	DesignWare HDMI controller
 
 config MACH_SUNXI_H3_H5
 	bool
@@ -130,6 +135,7 @@ config MACH_SUN8I_H3
 	select CPU_V7_HAS_VIRT
 	select ARCH_SUPPORT_PSCI
 	select MACH_SUNXI_H3_H5
+	select SUNXI_DE2
 	select ARMV7_BOOT_SEC_DEFAULT if OLD_SUNXI_KERNEL_COMPAT
 
 config MACH_SUN9I
