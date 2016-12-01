@@ -72,7 +72,8 @@ struct sunxi_mctl_ctl_reg {
 	u32 clken;		/* 0x0c */
 	u32 pgsr[2];		/* 0x10 PHY general status registers */
 	u32 statr;		/* 0x18 */
-	u8 res1[0x14];		/* 0x1c */
+	u8 res1[0x10];		/* 0x1c */
+	u32 lp3mr11;		/* 0x2c */
 	u32 mr[4];		/* 0x30 mode registers */
 	u32 pllgcr;		/* 0x40 */
 	u32 ptr[5];		/* 0x44 PHY timing registers */
@@ -85,7 +86,7 @@ struct sunxi_mctl_ctl_reg {
 	u32 rfshctl1;		/* 0x94 */
 	u32 pwrtmg;		/* 0x98 */
 	u8 res3[0x1c];		/* 0x9c */
-	u32 vtfcr;		/* 0xb8 (A64 only) */
+	u32 vtfcr;		/* 0xb8 (A64/R40 only) */
 	u32 dqsgmr;		/* 0xbc */
 	u32 dtcr;		/* 0xc0 */
 	u32 dtar[4];		/* 0xc4 */
@@ -120,7 +121,8 @@ struct sunxi_mctl_ctl_reg {
 	struct {		/* 0x300 DATX8 modules*/
 		u32 mdlr;		/* 0x00 master delay line register */
 		u32 lcdlr[3];		/* 0x04 local calibrated delay line registers */
-		u32 bdlr[12];		/* 0x10 bit delay line registers */
+		u32 bdlr[11];		/* 0x10 bit delay line registers */
+		u32 sdlr;		/* 0x3c output enable bit delay registers */
 		u32 gtr;		/* 0x40 general timing register */
 		u32 gcr;		/* 0x44 general configuration register */
 		u32 gsr[3];		/* 0x48 general status registers */

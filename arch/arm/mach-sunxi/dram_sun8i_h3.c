@@ -59,6 +59,12 @@ static void mctl_set_bit_delays(struct dram_para *para)
 		writel(ACBDLR_WRITE_DELAY(para->ac_delays[i]),
 		       &mctl_ctl->acbdlr[i]);
 
+#ifdef CONFIG_MACH_SUN8I_R40
+	/* DQSn, DMn, DQn output enable bit delay */
+	for (i = 0; i < 4; i++)
+		writel(0x6 << 24, &mctl_ctl->dx[i].sdlr);
+#endif
+
 	setbits_le32(&mctl_ctl->pgcr[0], 1 << 26);
 }
 
@@ -98,7 +104,7 @@ static void mctl_set_master_priority(void)
 	writel(0x04001800, &mctl_com->mcr[10][1]);
 	writel(0x04000009, &mctl_com->mcr[11][0]);
 	writel(0x00400120, &mctl_com->mcr[11][1]);
-#elif defined(CONFIG_MACH_SUN50I)
+#elif defined(CONFIG_MACH_SUN8I_R40) || defined(CONFIG_MACH_SUN50I)
 	/* enable bandwidth limit windows and set windows size 1us */
 	writel(399, &mctl_com->tmr);
 	writel((1 << 16), &mctl_com->bwcr);
@@ -123,12 +129,28 @@ static void mctl_set_master_priority(void)
 	writel(0x00400080, &mctl_com->mcr[8][1]);
 	writel(0x04000009, &mctl_com->mcr[9][0]);
 	writel(0x00400100, &mctl_com->mcr[9][1]);
+#if defined(CONFIG_MACH_SUN8I_R40)
+	writel(0x00800009, &mctl_com->mcr[10][0]);
+	writel(0x00000030, &mctl_com->mcr[10][1]);
+	writel(0x01800009, &mctl_com->mcr[11][0]);
+	writel(0x00000100, &mctl_com->mcr[11][1]);
+	writel(0x0200000d, &mctl_com->mcr[12][0]);
+	writel(0x01000180, &mctl_com->mcr[12][1]);
+	writel(0x2000020d, &mctl_com->mcr[13][0]);
+	writel(0x04001800, &mctl_com->mcr[13][1]);
+	writel(0x05000009, &mctl_com->mcr[14][0]);
+	writel(0x00400090, &mctl_com->mcr[14][1]);
+
+	/* ??? */
+	writel(0x00000001, &mctl_com->mapr);
+#else
 	writel(0x20000209, &mctl_com->mcr[10][0]);
 	writel(0x08001800, &mctl_com->mcr[10][1]);
 	writel(0x05000009, &mctl_com->mcr[11][0]);
 	writel(0x00400090, &mctl_com->mcr[11][1]);
 
 	writel(0x81000004, &mctl_com->mdfs_bwlr[2]);
+#endif
 #endif
 }
 
@@ -179,6 +201,10 @@ static void mctl_set_timing_params(struct dram_para *para)
 	writel(0x40, &mctl_ctl->mr[1]);
 	writel(0x18, &mctl_ctl->mr[2]);		/* CWL=8 */
 	writel(0x0, &mctl_ctl->mr[3]);
+
+#if defined(CONFIG_MACH_SUN8I_R40)
+	writel(0x3, &mctl_ctl->lp3mr11);	/* odt_en[7:4] */
+#endif
 
 	/* set DRAM timing */
 	writel(DRAMTMG0_TWTP(twtp) | DRAMTMG0_TFAW(tfaw) |
@@ -321,7 +347,7 @@ static void mctl_sys_init(struct dram_para *para)
 	clrbits_le32(&ccm->ahb_gate0, 1 << AHB_GATE_OFFSET_MCTL);
 	clrbits_le32(&ccm->ahb_reset0_cfg, 1 << AHB_RESET_OFFSET_MCTL);
 	clrbits_le32(&ccm->pll5_cfg, CCM_PLL5_CTRL_EN);
-#ifdef CONFIG_MACH_SUN50I
+#if defined(CONFIG_MACH_SUN8I_R40) || defined(CONFIG_MACH_SUN50I)
 	clrbits_le32(&ccm->pll11_cfg, CCM_PLL11_CTRL_EN);
 #endif
 	udelay(10);
@@ -329,7 +355,7 @@ static void mctl_sys_init(struct dram_para *para)
 	clrbits_le32(&ccm->dram_clk_cfg, CCM_DRAMCLK_CFG_RST);
 	udelay(1000);
 
-#ifdef CONFIG_MACH_SUN50I
+#if defined(CONFIG_MACH_SUN8I_R40) || defined(CONFIG_MACH_SUN50I)
 	clock_set_pll11(CONFIG_DRAM_CLK * 2 * 1000000, false);
 	clrsetbits_le32(&ccm->dram_clk_cfg,
 			CCM_DRAMCLK_CFG_DIV_MASK | CCM_DRAMCLK_CFG_SRC_MASK,
@@ -400,6 +426,13 @@ static int mctl_channel_init(struct dram_para *para)
 	/* dphy & aphy phase select 270 degree */
 	clrsetbits_le32(&mctl_ctl->pgcr[2], (0x3 << 10) | (0x3 << 8),
 			(0x1 << 10) | (0x2 << 8));
+#elif defined(CONFIG_MACH_SUN8I_R40)
+	/* dx ddr_clk & hdr_clk dynamic mode (tpr13[9] == 0) */
+	clrbits_le32(&mctl_ctl->pgcr[0], (0x3 << 14) | (0x3 << 12));
+
+	/* dphy & aphy phase select ? */
+	clrsetbits_le32(&mctl_ctl->pgcr[2], (0x3 << 10) | (0x3 << 8),
+			(0x0 << 10) | (0x3 << 8));
 #elif defined(CONFIG_MACH_SUN50I)
 	/* dphy & aphy phase select ? */
 	clrsetbits_le32(&mctl_ctl->pgcr[2], (0x3 << 10) | (0x3 << 8),
@@ -424,6 +457,12 @@ static int mctl_channel_init(struct dram_para *para)
 
 	mctl_phy_init(PIR_PLLINIT | PIR_DCAL | PIR_PHYRST | PIR_DRAMRST |
 		      PIR_DRAMINIT | PIR_QSGATE);
+#elif defined(CONFIG_MACH_SUN8I_R40)
+	clrsetbits_le32(&mctl_ctl->zqcr, 0xffffff, CONFIG_DRAM_ZQ);
+
+	/* R40 memory controller does not have ZQS training */
+	mctl_phy_init(PIR_ZCAL | PIR_PLLINIT | PIR_DCAL | PIR_PHYRST |
+		      PIR_DRAMRST | PIR_DRAMINIT);
 #else
 	clrsetbits_le32(&mctl_ctl->zqcr, 0xffffff, CONFIG_DRAM_ZQ);
 
@@ -467,7 +506,7 @@ static int mctl_channel_init(struct dram_para *para)
 	udelay(10);
 
 	/* set PGCR3, CKE polarity */
-#ifdef CONFIG_MACH_SUN50I
+#if defined(CONFIG_MACH_SUN8I_R40) || defined(CONFIG_MACH_SUN50I)
 	writel(0xc0aa0060, &mctl_ctl->pgcr[3]);
 #else
 	writel(0x00aa0060, &mctl_ctl->pgcr[3]);
@@ -528,6 +567,19 @@ unsigned long sunxi_dram_init(void)
 		                0,  0,  0,  0,  0,  0,  0,  0,
 		                0,  0,  0,  0,  0,  0,  0,  0,
 		                0,  0,  0,  0,  0,  0,  0      },
+#elif defined(CONFIG_MACH_SUN8I_R40)
+		.dx_read_delays =  {{ 14, 14, 14, 14, 14, 14, 14, 14, 14,  0,  0 },
+		                    { 14, 14, 14, 14, 14, 14, 14, 14, 14,  0,  0 },
+		                    { 14, 14, 14, 14, 14, 14, 14, 14, 14,  0,  0 },
+		                    { 14, 14, 14, 14, 14, 14, 14, 14, 14,  0,  0 }},
+		.dx_write_delays = {{  0,  0,  0,  0,  0,  0,  0,  0,  0,  6,  0 },
+		                    {  0,  0,  0,  0,  0,  0,  0,  0,  0,  6,  0 },
+		                    {  0,  0,  0,  0,  0,  0,  0,  0,  0,  6,  0 },
+		                    {  0,  0,  0,  0,  0,  0,  0,  0,  0,  6,  0 }},
+		.ac_delays = {  0,  0,  3,  0,  0,  0,  0,  0,
+		                0,  0,  0,  0,  0,  0,  0,  0,
+		                0,  0,  0,  0,  0,  0,  0,  0,
+		                0,  0,  0,  0,  0,  0,  0      },
 #elif defined(CONFIG_MACH_SUN50I)
 		.dx_read_delays =  {{ 16, 16, 16, 16, 17, 16, 16, 17, 16,  1,  0 },
 		                    { 17, 17, 17, 17, 17, 17, 17, 17, 17,  1,  0 },
@@ -559,8 +611,13 @@ unsigned long sunxi_dram_init(void)
 	writel(0x0c000400, &mctl_ctl->odtcfg);
 #endif
 
-#ifdef CONFIG_MACH_SUN50I
+#if defined(CONFIG_MACH_SUN50I)
 	setbits_le32(&mctl_ctl->vtfcr, (1 << 9));
+	clrbits_le32(&mctl_ctl->pgcr[2], (1 << 13));
+#elif defined(CONFIG_MACH_SUN8I_R40)
+	/* VTF enable (tpr13[8] == 1) */
+	setbits_le32(&mctl_ctl->vtfcr, (3 << 8));
+	/* DQ hold disable (tpr13[26] == 1) */
 	clrbits_le32(&mctl_ctl->pgcr[2], (1 << 13));
 #endif
 
