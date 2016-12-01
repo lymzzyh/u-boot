@@ -245,7 +245,9 @@ void clock_set_pll10(unsigned int clk)
 	       &ccm->pll10_cfg);
 }
 
-#if defined(CONFIG_MACH_SUN8I_A33) || defined(CONFIG_MACH_SUN50I)
+#if defined(CONFIG_MACH_SUN8I_A33) || \
+    defined(CONFIG_MACH_SUN8I_R40) || \
+    defined(CONFIG_MACH_SUN50I)
 void clock_set_pll11(unsigned int clk, bool sigma_delta_enable)
 {
 	struct sunxi_ccm_reg * const ccm =
