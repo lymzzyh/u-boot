@@ -30,8 +30,8 @@ void clock_init_safe(void)
 	clrsetbits_le32(&prcm->pll_ctrl1, PRCM_PLL_CTRL_LDO_KEY_MASK,
 			PRCM_PLL_CTRL_LDO_KEY);
 	clrsetbits_le32(&prcm->pll_ctrl1, ~PRCM_PLL_CTRL_LDO_KEY_MASK,
-		PRCM_PLL_CTRL_LDO_DIGITAL_EN | PRCM_PLL_CTRL_LDO_ANALOG_EN |
-		PRCM_PLL_CTRL_EXT_OSC_EN | PRCM_PLL_CTRL_LDO_OUT_L(1140));
+			PRCM_PLL_CTRL_LDO_DIGITAL_EN | PRCM_PLL_CTRL_LDO_ANALOG_EN |
+			PRCM_PLL_CTRL_EXT_OSC_EN | PRCM_PLL_CTRL_LDO_OUT_L(1140));
 	clrbits_le32(&prcm->pll_ctrl1, PRCM_PLL_CTRL_LDO_KEY_MASK);
 #endif
 
@@ -56,9 +56,9 @@ void clock_init_sec(void)
 		(struct sunxi_ccm_reg *)SUNXI_CCM_BASE;
 
 	setbits_le32(&ccm->ccu_sec_switch,
-		     CCM_SEC_SWITCH_MBUS_NONSEC |
-		     CCM_SEC_SWITCH_BUS_NONSEC |
-		     CCM_SEC_SWITCH_PLL_NONSEC);
+			CCM_SEC_SWITCH_MBUS_NONSEC |
+			CCM_SEC_SWITCH_BUS_NONSEC |
+			CCM_SEC_SWITCH_PLL_NONSEC);
 #endif
 }
 
@@ -70,19 +70,19 @@ void clock_init_uart(void)
 
 	/* uart clock source is apb2 */
 	writel(APB2_CLK_SRC_OSC24M|
-	       APB2_CLK_RATE_N_1|
-	       APB2_CLK_RATE_M(1),
-	       &ccm->apb2_div);
+			APB2_CLK_RATE_N_1|
+			APB2_CLK_RATE_M(1),
+			&ccm->apb2_div);
 
 	/* open the clock for uart */
 	setbits_le32(&ccm->apb2_gate,
-		     CLK_GATE_OPEN << (APB2_GATE_UART_SHIFT +
-				       CONFIG_CONS_INDEX - 1));
+			CLK_GATE_OPEN << (APB2_GATE_UART_SHIFT +
+				CONFIG_CONS_INDEX - 1));
 
 	/* deassert uart reset */
 	setbits_le32(&ccm->apb2_reset_cfg,
-		     1 << (APB2_RESET_UART_SHIFT +
-			   CONFIG_CONS_INDEX - 1));
+			1 << (APB2_RESET_UART_SHIFT +
+				CONFIG_CONS_INDEX - 1));
 #else
 	/* enable R_PIO and R_UART clocks, and de-assert resets */
 	prcm_apb0_enable(PRCM_APB0_GATE_PIO | PRCM_APB0_GATE_UART);
@@ -107,24 +107,24 @@ void clock_set_pll1(unsigned int clk)
 
 	/* Switch to 24MHz clock while changing PLL1 */
 	writel(AXI_DIV_3 << AXI_DIV_SHIFT |
-	       ATB_DIV_2 << ATB_DIV_SHIFT |
-	       CPU_CLK_SRC_OSC24M << CPU_CLK_SRC_SHIFT,
-	       &ccm->cpu_axi_cfg);
+			ATB_DIV_2 << ATB_DIV_SHIFT |
+			CPU_CLK_SRC_OSC24M << CPU_CLK_SRC_SHIFT,
+			&ccm->cpu_axi_cfg);
 
 	/*
 	 * sun6i: PLL1 rate = ((24000000 * n * k) >> 0) / m   (p is ignored)
 	 * sun8i: PLL1 rate = ((24000000 * n * k) >> p) / m
 	 */
 	writel(CCM_PLL1_CTRL_EN | CCM_PLL1_CTRL_P(p) |
-	       CCM_PLL1_CTRL_N(clk / (24000000 * k / m)) |
-	       CCM_PLL1_CTRL_K(k) | CCM_PLL1_CTRL_M(m), &ccm->pll1_cfg);
+			CCM_PLL1_CTRL_N(clk / (24000000 * k / m)) |
+			CCM_PLL1_CTRL_K(k) | CCM_PLL1_CTRL_M(m), &ccm->pll1_cfg);
 	sdelay(200);
 
 	/* Switch CPU to PLL1 */
 	writel(AXI_DIV_3 << AXI_DIV_SHIFT |
-	       ATB_DIV_2 << ATB_DIV_SHIFT |
-	       CPU_CLK_SRC_PLL1 << CPU_CLK_SRC_SHIFT,
-	       &ccm->cpu_axi_cfg);
+			ATB_DIV_2 << ATB_DIV_SHIFT |
+			CPU_CLK_SRC_PLL1 << CPU_CLK_SRC_SHIFT,
+			&ccm->cpu_axi_cfg);
 }
 #endif
 
@@ -141,8 +141,19 @@ void clock_set_pll3(unsigned int clk)
 
 	/* PLL3 rate = 24000000 * n / m */
 	writel(CCM_PLL3_CTRL_EN | CCM_PLL3_CTRL_INTEGER_MODE |
-	       CCM_PLL3_CTRL_N(clk / (24000000 / m)) | CCM_PLL3_CTRL_M(m),
-	       &ccm->pll3_cfg);
+			CCM_PLL3_CTRL_N(clk / (24000000 / m)) | CCM_PLL3_CTRL_M(m),
+			&ccm->pll3_cfg);
+}
+
+void clock_set_pll3_factors(int m, int n)
+{
+	struct sunxi_ccm_reg * const ccm =
+		(struct sunxi_ccm_reg *)SUNXI_CCM_BASE;
+
+	/* PLL3 rate = 24000000 * n / m */
+	writel(CCM_PLL3_CTRL_EN | CCM_PLL3_CTRL_INTEGER_MODE |
+			CCM_PLL3_CTRL_N(n) | CCM_PLL3_CTRL_M(m),
+			&ccm->pll3_cfg);
 }
 
 void clock_set_pll5(unsigned int clk, bool sigma_delta_enable)
@@ -168,10 +179,10 @@ void clock_set_pll5(unsigned int clk, bool sigma_delta_enable)
 			k = 2;
 	}
 	writel(CCM_PLL5_CTRL_EN |
-	       (sigma_delta_enable ? CCM_PLL5_CTRL_SIGMA_DELTA_EN : 0) |
-	       CCM_PLL5_CTRL_UPD |
-	       CCM_PLL5_CTRL_N(clk / (24000000 * k / m)) |
-	       CCM_PLL5_CTRL_K(k) | CCM_PLL5_CTRL_M(m), &ccm->pll5_cfg);
+			(sigma_delta_enable ? CCM_PLL5_CTRL_SIGMA_DELTA_EN : 0) |
+			CCM_PLL5_CTRL_UPD |
+			CCM_PLL5_CTRL_N(clk / (24000000 * k / m)) |
+			CCM_PLL5_CTRL_K(k) | CCM_PLL5_CTRL_M(m), &ccm->pll5_cfg);
 
 	udelay(5500);
 }
@@ -212,10 +223,27 @@ void clock_set_mipi_pll(unsigned int clk)
 
 done:
 	writel(CCM_MIPI_PLL_CTRL_EN | CCM_MIPI_PLL_CTRL_LDO_EN |
-	       CCM_MIPI_PLL_CTRL_N(best_n) | CCM_MIPI_PLL_CTRL_K(best_k) |
-	       CCM_MIPI_PLL_CTRL_M(best_m), &ccm->mipi_pll_cfg);
+			CCM_MIPI_PLL_CTRL_N(best_n) | CCM_MIPI_PLL_CTRL_K(best_k) |
+			CCM_MIPI_PLL_CTRL_M(best_m), &ccm->mipi_pll_cfg);
 }
 #endif
+
+void clock_set_pll10(unsigned int clk)
+{
+	struct sunxi_ccm_reg * const ccm =
+		(struct sunxi_ccm_reg *)SUNXI_CCM_BASE;
+	const int m = 2; /* 12 MHz steps */
+
+	if (clk == 0) {
+		clrbits_le32(&ccm->pll10_cfg, CCM_PLL10_CTRL_EN);
+		return;
+	}
+
+	/* PLL10 rate = 24000000 * n / m */
+	writel(CCM_PLL10_CTRL_EN | CCM_PLL10_CTRL_INTEGER_MODE |
+	       CCM_PLL10_CTRL_N(clk / (24000000 / m)) | CCM_PLL10_CTRL_M(m),
+	       &ccm->pll10_cfg);
+}
 
 #if defined(CONFIG_MACH_SUN8I_A33) || defined(CONFIG_MACH_SUN50I)
 void clock_set_pll11(unsigned int clk, bool sigma_delta_enable)
