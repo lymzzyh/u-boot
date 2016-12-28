@@ -59,8 +59,18 @@ config SUNXI_DE2
 	Select this for sunxi SoCs with "DE 2.0" and, if HDMI is present,
 	DesignWare HDMI controller
 
+config SUNXI_DRAM_DW
+	bool
+	---help---
+	Select this for sunxi SoCs which uses a DRAM controller like the
+	DesignWare controller used in H3, mainly SoCs after H3, which do
+	not have official open-source DRAM initialization code, but can
+	use modified H3 DRAM initialization code.
+
 config MACH_SUNXI_H3_H5
 	bool
+	select SUNXI_DE2
+	select SUNXI_DRAM_DW
 	select SUNXI_GEN_SUN6I
 	select SUPPORT_SPL
 
@@ -135,7 +145,6 @@ config MACH_SUN8I_H3
 	select CPU_V7_HAS_VIRT
 	select ARCH_SUPPORT_PSCI
 	select MACH_SUNXI_H3_H5
-	select SUNXI_DE2
 	select ARMV7_BOOT_SEC_DEFAULT if OLD_SUNXI_KERNEL_COMPAT
 
 config MACH_SUN9I
@@ -152,6 +161,7 @@ config MACH_SUN50I
 	select SUNXI_GEN_SUN6I
 	select SUNXI_HIGH_SRAM
 	select SUPPORT_SPL
+	select SUNXI_DRAM_DW
 
 config MACH_SUN50I_H5
 	bool "sun50i (Allwinner H5)"
