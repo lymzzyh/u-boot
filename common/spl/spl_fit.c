@@ -145,39 +145,41 @@ static int spl_load_fit_image(struct spl_load_info *info, ulong sector,
 {
 	ulong offset;
 	size_t length;
-	ulong load, entry;
+	ulong load_addr, load_ptr, entry;
 	void *src;
 	ulong overhead;
 	int nr_sectors;
+	int align_len = ARCH_DMA_MINALIGN - 1;
 
 	offset = fdt_getprop_u32(fit, node, "data-offset") + base_offset;
 	length = fdt_getprop_u32(fit, node, "data-size");
-	load = fdt_getprop_u32(fit, node, "load");
-	if (load == -1U && image_info)
-		load = image_info->load_addr;
+	load_addr = fdt_getprop_u32(fit, node, "load");
+	if (load_addr == -1U && image_info)
+		load_addr = image_info->load_addr;
+	load_ptr = (load_addr + align_len) & ~align_len;
 	entry = fdt_getprop_u32(fit, node, "entry");
 
 	overhead = get_aligned_image_overhead(info, offset);
 	nr_sectors = get_aligned_image_size(info, length, offset);
 
 	if (info->read(info, sector + get_aligned_image_offset(info, offset),
-		       nr_sectors, (void*)load) != nr_sectors)
+		       nr_sectors, (void*)load_ptr) != nr_sectors)
 		return -EIO;
-	debug("image: dst=%lx, offset=%lx, size=%lx\n", load, offset,
+	debug("image: dst=%lx, offset=%lx, size=%lx\n", load_ptr, offset,
 	      (unsigned long)length);
 
-	src = (void *)load + overhead;
+	src = (void *)load_ptr + overhead;
 #ifdef CONFIG_SPL_FIT_IMAGE_POST_PROCESS
 	board_fit_image_post_process(&src, &length);
 #endif
 
-	memcpy((void*)load, src, length);
+	memcpy((void*)load_addr, src, length);
 
 	if (image_info) {
-		image_info->load_addr = load;
+		image_info->load_addr = load_addr;
 		image_info->size = length;
 		if (entry == -1U)
-			image_info->entry_point = load;
+			image_info->entry_point = load_addr;
 		else
 			image_info->entry_point = entry;
 	}
