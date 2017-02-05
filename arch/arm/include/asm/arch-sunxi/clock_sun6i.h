@@ -82,7 +82,12 @@ struct sunxi_ccm_reg {
 	u32 lcd0_ch0_clk_cfg;	/* 0x118 LCD0 CH0 module clock */
 #endif
 	u32 lcd1_ch0_clk_cfg;	/* 0x11c LCD1 CH0 module clock */
+#ifdef CONFIG_MACH_SUN8I_H3
+	u32 tve_clk_cfg;	/* 0x120 TVE module clock */
+	u32 reserved14[2];
+#else
 	u32 reserved14[3];
+#endif
 	u32 lcd0_ch1_clk_cfg;	/* 0x12c LCD0 CH1 module clock */
 	u32 lcd1_ch1_clk_cfg;	/* 0x130 LCD1 CH1 module clock */
 	u32 csi0_clk_cfg;	/* 0x134 CSI0 module clock */
@@ -294,6 +299,7 @@ struct sunxi_ccm_reg {
 #define AHB_GATE_OFFSET_DE_BE0		12
 #define AHB_GATE_OFFSET_DE		12
 #define AHB_GATE_OFFSET_HDMI		11
+#define AHB_GATE_OFFSET_TVE		9
 #define AHB_GATE_OFFSET_LCD1		5
 #define AHB_GATE_OFFSET_LCD0		4
 #define AHB_GATE_OFFSET_TCON1		4
@@ -371,6 +377,9 @@ struct sunxi_ccm_reg {
 #define CCM_LCD_CH0_CTRL_RST		0
 #define CCM_LCD_CH0_CTRL_GATE		(0x1 << 31)
 
+#define CCM_TVE_CTRL_GATE		(0x1 << 31)
+#define CCM_TVE_CTRL_M(n)		((((n) - 1) & 0xf) << 0)
+
 #define CCM_TCON0_CTRL_GATE		(0x1 << 31)
 #define CCM_TCON0_CTRL_M(n)		((((n) - 1) & 0xf) << 0)
 
@@ -424,6 +433,7 @@ struct sunxi_ccm_reg {
 #define AHB_RESET_OFFSET_DE		12
 #define AHB_RESET_OFFSET_HDMI		11
 #define AHB_RESET_OFFSET_HDMI2		10
+#define AHB_RESET_OFFSET_TVE		9
 #define AHB_RESET_OFFSET_LCD1		5
 #define AHB_RESET_OFFSET_LCD0		4
 #define AHB_RESET_OFFSET_TCON1		4

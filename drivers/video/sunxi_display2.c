@@ -35,6 +35,8 @@ enum sunxi_monitor {
 	sunxi_monitor_none,
 	sunxi_monitor_dvi,
 	sunxi_monitor_hdmi,
+	sunxi_monitor_composite_pal,
+	sunxi_monitor_composite_ntsc,
 };
 #define SUNXI_MONITOR_LAST sunxi_monitor_hdmi
 
@@ -45,6 +47,27 @@ struct sunxi_display {
 	unsigned int fb_addr;
 	unsigned int fb_size;
 } sunxi_display;
+
+const struct ctfb_res_modes composite_video_modes[2] = {
+	/*  x     y  hz  pixclk ps/kHz   le   ri  up  lo   hs vs  s  vmode */
+	{ 720,  576, 50, 37037,  27000, 137,   5, 20, 27,   2, 2, 0, FB_VMODE_INTERLACED },
+	{ 720,  480, 60, 37037,  27000, 116,  20, 16, 27,   2, 2, 0, FB_VMODE_INTERLACED },
+};
+
+static bool sunxi_is_composite(void)
+{
+	switch (sunxi_display.monitor) {
+	case sunxi_monitor_none:
+	case sunxi_monitor_dvi:
+	case sunxi_monitor_hdmi:
+		return false;
+	case sunxi_monitor_composite_pal:
+	case sunxi_monitor_composite_ntsc:
+		return true;
+	}
+
+	return false; /* Never reached */
+}
 
 #ifdef CONFIG_VIDEO_HDMI
 
@@ -361,29 +384,33 @@ static void sunxi_composer_init(void)
 	setbits_le32(&ccm->de_clk_cfg, CCM_DE2_CTRL_GATE);
 }
 
-static void sunxi_composer_mode_set(const struct ctfb_res_modes *mode,
+static void sunxi_composer_mode_set(int mux, const struct ctfb_res_modes *mode,
 				    unsigned int address)
 {
+	void *de_mux_base = (mux == 0) ? SUNXI_DE2_MUX0_BASE : SUNXI_DE2_MUX1_BASE;
 	struct de_clk * const de_clk_regs =
 		(struct de_clk *)(SUNXI_DE2_BASE);
 	struct de_glb * const de_glb_regs =
-		(struct de_glb *)(SUNXI_DE2_MUX0_BASE +
+		(struct de_glb *)(de_mux_base +
 				  SUNXI_DE2_MUX_GLB_REGS);
 	struct de_bld * const de_bld_regs =
-		(struct de_bld *)(SUNXI_DE2_MUX0_BASE +
+		(struct de_bld *)(de_mux_base +
 				  SUNXI_DE2_MUX_BLD_REGS);
 	struct de_ui * const de_ui_regs =
-		(struct de_ui *)(SUNXI_DE2_MUX0_BASE +
+		(struct de_ui *)(de_mux_base +
 				 SUNXI_DE2_MUX_CHAN_REGS +
 				 SUNXI_DE2_MUX_CHAN_SZ * 1);
+	struct de_csc * const de_csc_regs =
+		(struct de_csc *)(de_mux_base +
+				  SUNXI_DE2_MUX_DCSC_REGS);
 	u32 size = SUNXI_DE2_WH(mode->xres, mode->yres);
-	int channel, i;
+	int channel;
 	u32 data;
 
 	/* enable clock */
-	setbits_le32(&de_clk_regs->rst_cfg, 1);
-	setbits_le32(&de_clk_regs->gate_cfg, 1);
-	setbits_le32(&de_clk_regs->bus_cfg, 1);
+	setbits_le32(&de_clk_regs->rst_cfg, (mux == 0) ? 1 : 4);
+	setbits_le32(&de_clk_regs->gate_cfg, (mux == 0) ? 1 : 2);
+	setbits_le32(&de_clk_regs->bus_cfg, (mux == 0) ? 1 : 2);
 
 	clrbits_le32(&de_clk_regs->sel_cfg, 1);
 
@@ -393,7 +420,7 @@ static void sunxi_composer_mode_set(const struct ctfb_res_modes *mode,
 	writel(size, &de_glb_regs->size);
 
 	for (channel = 0; channel < 4; channel++) {
-		void *chan = SUNXI_DE2_MUX0_BASE + SUNXI_DE2_MUX_CHAN_REGS +
+		void *chan = de_mux_base + SUNXI_DE2_MUX_CHAN_REGS +
 			SUNXI_DE2_MUX_CHAN_SZ * channel;
 		memset(chan, 0, channel == 0 ?
 			sizeof(struct de_vi) : sizeof(struct de_ui));
@@ -408,30 +435,46 @@ static void sunxi_composer_mode_set(const struct ctfb_res_modes *mode,
 	writel(0xff000000, &de_bld_regs->bkcolor);
 
 	writel(0x03010301, &de_bld_regs->bld_mode[0]);
-	writel(0x03010301, &de_bld_regs->bld_mode[1]);
 
 	writel(size, &de_bld_regs->output_size);
 	writel(mode->vmode & FB_VMODE_INTERLACED ? 2 : 0,
-	       &de_bld_regs->out_ctl);
+		&de_bld_regs->out_ctl);
 	writel(0, &de_bld_regs->ck_ctl);
 
-	for (i = 0; i < 4; i++) {
-		writel(0xff000000, &de_bld_regs->attr[i].fcolor);
-		writel(size, &de_bld_regs->attr[i].insize);
-	}
+	writel(0xff000000, &de_bld_regs->attr[0].fcolor);
+	writel(size, &de_bld_regs->attr[0].insize);
 
 	/* Disable all other units */
-	writel(0, SUNXI_DE2_MUX0_BASE + SUNXI_DE2_MUX_VSU_REGS);
-	writel(0, SUNXI_DE2_MUX0_BASE + SUNXI_DE2_MUX_GSU1_REGS);
-	writel(0, SUNXI_DE2_MUX0_BASE + SUNXI_DE2_MUX_GSU2_REGS);
-	writel(0, SUNXI_DE2_MUX0_BASE + SUNXI_DE2_MUX_GSU3_REGS);
-	writel(0, SUNXI_DE2_MUX0_BASE + SUNXI_DE2_MUX_FCE_REGS);
-	writel(0, SUNXI_DE2_MUX0_BASE + SUNXI_DE2_MUX_BWS_REGS);
-	writel(0, SUNXI_DE2_MUX0_BASE + SUNXI_DE2_MUX_LTI_REGS);
-	writel(0, SUNXI_DE2_MUX0_BASE + SUNXI_DE2_MUX_PEAK_REGS);
-	writel(0, SUNXI_DE2_MUX0_BASE + SUNXI_DE2_MUX_ASE_REGS);
-	writel(0, SUNXI_DE2_MUX0_BASE + SUNXI_DE2_MUX_FCC_REGS);
-	writel(0, SUNXI_DE2_MUX0_BASE + SUNXI_DE2_MUX_DCSC_REGS);
+	writel(0, de_mux_base + SUNXI_DE2_MUX_VSU_REGS);
+	writel(0, de_mux_base + SUNXI_DE2_MUX_GSU1_REGS);
+	writel(0, de_mux_base + SUNXI_DE2_MUX_GSU2_REGS);
+	writel(0, de_mux_base + SUNXI_DE2_MUX_GSU3_REGS);
+	writel(0, de_mux_base + SUNXI_DE2_MUX_FCE_REGS);
+	writel(0, de_mux_base + SUNXI_DE2_MUX_BWS_REGS);
+	writel(0, de_mux_base + SUNXI_DE2_MUX_LTI_REGS);
+	writel(0, de_mux_base + SUNXI_DE2_MUX_PEAK_REGS);
+	writel(0, de_mux_base + SUNXI_DE2_MUX_ASE_REGS);
+	writel(0, de_mux_base + SUNXI_DE2_MUX_FCC_REGS);
+
+	if (sunxi_is_composite()) {
+		writel(0x107, &de_csc_regs->coef11);
+		writel(0x204, &de_csc_regs->coef12);
+		writel(0x64, &de_csc_regs->coef13);
+		writel(0x4200, &de_csc_regs->coef14);
+		writel(0x1f68, &de_csc_regs->coef21);
+		writel(0x1ed6, &de_csc_regs->coef22);
+		writel(0x1c2, &de_csc_regs->coef23);
+		writel(0x20200, &de_csc_regs->coef24);
+		writel(0x1c2, &de_csc_regs->coef31);
+		writel(0x1e87, &de_csc_regs->coef32);
+		writel(0x1fb7, &de_csc_regs->coef33);
+		writel(0x20200, &de_csc_regs->coef34);
+		writel(0x20200, &de_csc_regs->alpha);
+
+		writel(1, &de_csc_regs->csc_ctl);
+	} else {
+		writel(0, &de_csc_regs->csc_ctl);
+	}
 
 	data = SUNXI_DE2_UI_CFG_ATTR_EN |
 	       SUNXI_DE2_UI_CFG_ATTR_FMT(SUNXI_DE2_FORMAT_XRGB_8888) |
@@ -445,10 +488,15 @@ static void sunxi_composer_mode_set(const struct ctfb_res_modes *mode,
 	writel(size, &de_ui_regs->ovl_size);
 }
 
-static void sunxi_composer_enable(void)
+static void sunxi_composer_enable(int mux)
 {
-	struct de_glb * const de_glb_regs =
-		(struct de_glb *)(SUNXI_DE2_MUX0_BASE +
+	struct de_glb *de_glb_regs;
+
+	if (mux == 0)
+		de_glb_regs = (struct de_glb *)(SUNXI_DE2_MUX0_BASE +
+				  SUNXI_DE2_MUX_GLB_REGS);
+	else
+		de_glb_regs = (struct de_glb *)(SUNXI_DE2_MUX1_BASE +
 				  SUNXI_DE2_MUX_GLB_REGS);
 
 	writel(1, &de_glb_regs->dbuff);
@@ -508,19 +556,30 @@ static void sunxi_lcdc_pll_set(int dotclock, int *clk_div)
 	*clk_div = x;
 }
 
-static void sunxi_lcdc_init(void)
+static void sunxi_lcdc_init(int num)
 {
 	struct sunxi_ccm_reg * const ccm =
 		(struct sunxi_ccm_reg *)SUNXI_CCM_BASE;
-	struct sunxi_lcdc_reg * const lcdc =
-		(struct sunxi_lcdc_reg *)SUNXI_LCD0_BASE;
+	struct sunxi_lcdc_reg *lcdc;
 
-	/* Reset off */
-	setbits_le32(&ccm->ahb_reset1_cfg, 1 << AHB_RESET_OFFSET_TCON0);
+	if (num == 0) {
+		lcdc = (struct sunxi_lcdc_reg *)SUNXI_LCD0_BASE;
 
-	/* Clock on */
-	setbits_le32(&ccm->ahb_gate1, 1 << AHB_GATE_OFFSET_TCON0);
-	setbits_le32(&ccm->tcon0_clk_cfg, CCM_TCON0_CTRL_GATE);
+		/* Reset off */
+		setbits_le32(&ccm->ahb_reset1_cfg, 1 << AHB_RESET_OFFSET_TCON0);
+
+		/* Clock on */
+		setbits_le32(&ccm->ahb_gate1, 1 << AHB_GATE_OFFSET_TCON0);
+		setbits_le32(&ccm->tcon0_clk_cfg, CCM_TCON0_CTRL_GATE);
+	} else {
+		lcdc = (struct sunxi_lcdc_reg *)SUNXI_LCD1_BASE;
+
+		/* Reset off */
+		setbits_le32(&ccm->ahb_reset1_cfg, 1 << AHB_RESET_OFFSET_TCON1);
+
+		/* Clock on */
+		setbits_le32(&ccm->ahb_gate1, 1 << AHB_GATE_OFFSET_TCON1);
+	}
 
 	/* Init lcdc */
 	writel(0, &lcdc->ctrl); /* Disable tcon */
@@ -530,10 +589,14 @@ static void sunxi_lcdc_init(void)
 	writel(0x0fffffff, &lcdc->tcon1_io_tristate);
 }
 
-static void sunxi_lcdc_enable(void)
+static void sunxi_lcdc_enable(int num)
 {
-	struct sunxi_lcdc_reg * const lcdc =
-		(struct sunxi_lcdc_reg *)SUNXI_LCD0_BASE;
+	struct sunxi_lcdc_reg *lcdc;
+
+	if (num == 0)
+		lcdc = (struct sunxi_lcdc_reg *)SUNXI_LCD0_BASE;
+	else
+		lcdc = (struct sunxi_lcdc_reg *)SUNXI_LCD1_BASE;
 
 	setbits_le32(&lcdc->ctrl, SUNXI_LCDC_CTRL_TCON_ENABLE);
 }
@@ -550,13 +613,18 @@ static int sunxi_lcdc_get_clk_delay(const struct ctfb_res_modes *mode)
 	return (delay > 31) ? 31 : delay;
 }
 
-#if defined CONFIG_VIDEO_HDMI
-static void sunxi_lcdc_tcon1_mode_set(const struct ctfb_res_modes *mode,
+#if defined CONFIG_VIDEO_HDMI || defined CONFIG_VIDEO_COMPOSITE
+static void sunxi_lcdc_tcon1_mode_set(int num,
+				      const struct ctfb_res_modes *mode,
 				      int *clk_div)
 {
-	struct sunxi_lcdc_reg * const lcdc =
-		(struct sunxi_lcdc_reg *)SUNXI_LCD0_BASE;
+	struct sunxi_lcdc_reg *lcdc;
 	int bp, clk_delay, total, yres;
+
+	if (num == 0)
+		lcdc = (struct sunxi_lcdc_reg *)SUNXI_LCD0_BASE;
+	else
+		lcdc = (struct sunxi_lcdc_reg *)SUNXI_LCD1_BASE;
 
 	clk_delay = sunxi_lcdc_get_clk_delay(mode);
 	writel(SUNXI_LCDC_TCON1_CTRL_ENABLE |
@@ -589,9 +657,10 @@ static void sunxi_lcdc_tcon1_mode_set(const struct ctfb_res_modes *mode,
 	writel(SUNXI_LCDC_X(mode->hsync_len) | SUNXI_LCDC_Y(mode->vsync_len),
 	       &lcdc->tcon1_timing_sync);
 
-	sunxi_lcdc_pll_set(mode->pixclock_khz, clk_div);
+	if (!sunxi_is_composite())
+		sunxi_lcdc_pll_set(mode->pixclock_khz, clk_div);
 }
-#endif /* CONFIG_VIDEO_HDMI */
+#endif /* CONFIG_VIDEO_HDMI || CONFIG_VIDEO_COMPOSITE */
 
 #ifdef CONFIG_VIDEO_HDMI
 
@@ -795,10 +864,93 @@ static void sunxi_hdmi_enable(void)
 
 #endif /* CONFIG_VIDEO_HDMI */
 
+#ifdef CONFIG_VIDEO_COMPOSITE
+
+static void sunxi_tvencoder_mode_set(void)
+{
+	struct sunxi_ccm_reg * const ccm =
+		(struct sunxi_ccm_reg *)SUNXI_CCM_BASE;
+	struct sunxi_tve_reg * const tve =
+		(struct sunxi_tve_reg *)SUNXI_TVE0_BASE;
+
+	/* Reset off */
+	setbits_le32(&ccm->ahb_reset1_cfg, 1 << AHB_RESET_OFFSET_TVE);
+
+	/* Clock on */
+	setbits_le32(&ccm->ahb_gate1, 1 << AHB_GATE_OFFSET_TVE);
+	writel(CCM_TVE_CTRL_GATE | CCM_TVE_CTRL_M(2), &ccm->tve_clk_cfg);
+
+	/*writel(0x00000001, &tve->TVE_300);
+	writel(0x02000c00, &tve->TVE_304);
+	writel(0x00000000, &tve->TVE_300);*/
+
+	switch (sunxi_display.monitor) {
+	case sunxi_monitor_composite_pal:
+		writel(SUNXI_TVE_GCTRL_DAC_INPUT(0, 1) |
+		       SUNXI_TVE_GCTRL_DAC_INPUT(1, 2) |
+		       SUNXI_TVE_GCTRL_DAC_INPUT(2, 3) |
+		       SUNXI_TVE_GCTRL_DAC_INPUT(3, 4), &tve->gctrl);
+		writel(SUNXI_TVE_CFG0_PAL, &tve->cfg0);
+		writel(SUNXI_TVE_DAC_CFG0_COMPOSITE, &tve->dac_cfg0);
+		writel(SUNXI_TVE_FILTER_COMPOSITE, &tve->filter);
+		writel(0x2a098acb, &tve->chroma_freq);
+		writel(SUNXI_TVE_PORCH_NUM_PAL, &tve->porch_num);
+		writel(SUNXI_TVE_LINE_NUM_PAL, &tve->line_num);
+		writel(SUNXI_TVE_BLANK_BLACK_LEVEL_PAL, &tve->blank_black_level);
+		writel(SUNXI_TVE_UNKNOWN1_COMPOSITE, &tve->unknown1);
+		writel(SUNXI_TVE_CBR_LEVEL_PAL, &tve->cbr_level);
+		writel(SUNXI_TVE_BURST_WIDTH_COMPOSITE, &tve->burst_width);
+		writel(SUNXI_TVE_UNKNOWN2_PAL, &tve->unknown2);
+		writel(SUNXI_TVE_ACTIVE_NUM_COMPOSITE, &tve->active_num);
+		writel(SUNXI_TVE_CHROMA_BW_GAIN_COMP, &tve->chroma_bw_gain);
+		writel(SUNXI_TVE_NOTCH_WIDTH_COMPOSITE, &tve->notch_width);
+		writel(SUNXI_TVE_RESYNC_NUM_PAL, &tve->resync_num);
+		writel(SUNXI_TVE_SLAVE_PARA_COMPOSITE, &tve->slave_para);
+		break;
+	case sunxi_monitor_composite_ntsc:
+		writel(SUNXI_TVE_GCTRL_DAC_INPUT(0, 1) |
+		       SUNXI_TVE_GCTRL_DAC_INPUT(1, 2) |
+		       SUNXI_TVE_GCTRL_DAC_INPUT(2, 3) |
+		       SUNXI_TVE_GCTRL_DAC_INPUT(3, 4), &tve->gctrl);
+		writel(SUNXI_TVE_CFG0_NTSC, &tve->cfg0);
+		writel(SUNXI_TVE_DAC_CFG0_COMPOSITE, &tve->dac_cfg0);
+		writel(SUNXI_TVE_FILTER_COMPOSITE, &tve->filter);
+		writel(SUNXI_TVE_PORCH_NUM_NTSC, &tve->porch_num);
+		writel(SUNXI_TVE_LINE_NUM_NTSC, &tve->line_num);
+		writel(SUNXI_TVE_BLANK_BLACK_LEVEL_NTSC, &tve->blank_black_level);
+		writel(SUNXI_TVE_UNKNOWN1_COMPOSITE, &tve->unknown1);
+		writel(SUNXI_TVE_CBR_LEVEL_NTSC, &tve->cbr_level);
+		writel(SUNXI_TVE_BURST_PHASE_NTSC, &tve->burst_phase);
+		writel(SUNXI_TVE_BURST_WIDTH_COMPOSITE, &tve->burst_width);
+		writel(SUNXI_TVE_UNKNOWN2_NTSC, &tve->unknown2);
+		writel(SUNXI_TVE_SYNC_VBI_LEVEL_NTSC, &tve->sync_vbi_level);
+		writel(SUNXI_TVE_ACTIVE_NUM_COMPOSITE, &tve->active_num);
+		writel(SUNXI_TVE_CHROMA_BW_GAIN_COMP, &tve->chroma_bw_gain);
+		writel(SUNXI_TVE_NOTCH_WIDTH_COMPOSITE, &tve->notch_width);
+		writel(SUNXI_TVE_RESYNC_NUM_NTSC, &tve->resync_num);
+		writel(SUNXI_TVE_SLAVE_PARA_COMPOSITE, &tve->slave_para);
+		break;
+	case sunxi_monitor_none:
+	case sunxi_monitor_dvi:
+	case sunxi_monitor_hdmi:
+		break;
+	}
+}
+
+static void sunxi_tvencoder_enable(void)
+{
+	struct sunxi_tve_reg * const tve =
+		(struct sunxi_tve_reg *)SUNXI_TVE0_BASE;
+
+	setbits_le32(&tve->gctrl, SUNXI_TVE_GCTRL_ENABLE);
+}
+
+#endif /* CONFIG_VIDEO_COMPOSITE */
+
 static void sunxi_engines_init(void)
 {
 	sunxi_composer_init();
-	sunxi_lcdc_init();
+	sunxi_lcdc_init(sunxi_is_composite() ? 1 : 0);
 }
 
 static void sunxi_mode_set(const struct ctfb_res_modes *mode,
@@ -812,12 +964,23 @@ static void sunxi_mode_set(const struct ctfb_res_modes *mode,
 	case sunxi_monitor_dvi:
 	case sunxi_monitor_hdmi:
 #ifdef CONFIG_VIDEO_HDMI
-		sunxi_composer_mode_set(mode, address);
-		sunxi_lcdc_tcon1_mode_set(mode, &clk_div);
+		sunxi_composer_mode_set(0, mode, address);
+		sunxi_lcdc_tcon1_mode_set(0, mode, &clk_div);
 		sunxi_hdmi_mode_set(mode, clk_div);
-		sunxi_composer_enable();
-		sunxi_lcdc_enable();
+		sunxi_composer_enable(0);
+		sunxi_lcdc_enable(0);
 		sunxi_hdmi_enable();
+#endif
+		break;
+	case sunxi_monitor_composite_pal:
+	case sunxi_monitor_composite_ntsc:
+#ifdef CONFIG_VIDEO_COMPOSITE
+		sunxi_composer_mode_set(1, mode, address);
+		sunxi_lcdc_tcon1_mode_set(1, mode, &clk_div);
+		sunxi_tvencoder_mode_set();
+		sunxi_composer_enable(1);
+		sunxi_lcdc_enable(1);
+		sunxi_tvencoder_enable();
 #endif
 		break;
 	}
@@ -826,9 +989,11 @@ static void sunxi_mode_set(const struct ctfb_res_modes *mode,
 static const char *sunxi_get_mon_desc(enum sunxi_monitor monitor)
 {
 	switch (monitor) {
-	case sunxi_monitor_none:	return "none";
-	case sunxi_monitor_dvi:		return "dvi";
-	case sunxi_monitor_hdmi:	return "hdmi";
+	case sunxi_monitor_none:		return "none";
+	case sunxi_monitor_dvi:			return "dvi";
+	case sunxi_monitor_hdmi:		return "hdmi";
+	case sunxi_monitor_composite_pal:	return "composite-pal";
+	case sunxi_monitor_composite_ntsc:	return "composite-ntsc";
 	}
 	return NULL; /* never reached */
 }
@@ -847,10 +1012,21 @@ static bool sunxi_has_hdmi(void)
 #endif
 }
 
+static bool sunxi_has_composite(void)
+{
+#ifdef CONFIG_VIDEO_COMPOSITE
+	return true;
+#else
+	return false;
+#endif
+}
+
 static enum sunxi_monitor sunxi_get_default_mon(bool allow_hdmi)
 {
 	if (allow_hdmi && sunxi_has_hdmi())
 		return sunxi_monitor_dvi;
+	else if (sunxi_has_composite())
+		return sunxi_monitor_composite_pal;
 	else
 		return sunxi_monitor_none;
 }
@@ -920,12 +1096,26 @@ void *video_hw_init(void)
 			return NULL;
 		}
 		break;
+	case sunxi_monitor_composite_pal:
+	case sunxi_monitor_composite_ntsc:
+		if (!sunxi_has_composite()) {
+			printf("Composite video not supported on this board\n");
+			sunxi_display.monitor = sunxi_monitor_none;
+			return NULL;
+		}
+		if (sunxi_display.monitor == sunxi_monitor_composite_pal)
+			mode = &composite_video_modes[0];
+		else
+			mode = &composite_video_modes[1];
+		sunxi_display.depth = 24;
+		break;
 	}
 
+	/* Yes these defaults are quite high, overscan on composite sucks... */
 	if (overscan_x == -1)
-		overscan_x = 0;
+		overscan_x = sunxi_is_composite() ? 32 : 0;
 	if (overscan_y == -1)
-		overscan_y = 0;
+		overscan_y = sunxi_is_composite() ? 20 : 0;
 
 	sunxi_display.fb_size =
 		(mode->xres * mode->yres * 4 + 0xfff) & ~0xfff;
@@ -992,6 +1182,8 @@ int sunxi_simplefb_setup(void *blob)
 		return 0;
 	case sunxi_monitor_dvi:
 	case sunxi_monitor_hdmi:
+	case sunxi_monitor_composite_pal:
+	case sunxi_monitor_composite_ntsc:
 		pipeline = "de0-lcd0-hdmi";
 		break;
 	}
