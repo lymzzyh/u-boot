@@ -343,12 +343,6 @@ struct sunxi_tve_reg {
 	u32 slave_para;			/* 0x134 */
 	u32 cfg1;			/* 0x138 */
 	u32 cfg2;			/* 0x13c */
-	u8 res2[0x1C0];			/* 0x140 */
-	u32 TVE_300;			/* 0x300 */
-	u32 TVE_304;			/* 0x304 */
-	u32 TVE_308;			/* 0x308 */
-	u8 res3[0x94];			/* 0x30C */
-	u32 TVE_3A0;			/* 0x3A0 */
 };
 
 /*

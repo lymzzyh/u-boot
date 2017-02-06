@@ -880,10 +880,6 @@ static void sunxi_tvencoder_mode_set(void)
 	setbits_le32(&ccm->ahb_gate1, 1 << AHB_GATE_OFFSET_TVE);
 	writel(CCM_TVE_CTRL_GATE | CCM_TVE_CTRL_M(2), &ccm->tve_clk_cfg);
 
-	/*writel(0x00000001, &tve->TVE_300);
-	writel(0x02000c00, &tve->TVE_304);
-	writel(0x00000000, &tve->TVE_300);*/
-
 	switch (sunxi_display.monitor) {
 	case sunxi_monitor_composite_pal:
 		writel(SUNXI_TVE_GCTRL_DAC_INPUT(0, 1) |
@@ -1182,9 +1178,11 @@ int sunxi_simplefb_setup(void *blob)
 		return 0;
 	case sunxi_monitor_dvi:
 	case sunxi_monitor_hdmi:
+		pipeline = "de0-lcd0-hdmi";
+		break;
 	case sunxi_monitor_composite_pal:
 	case sunxi_monitor_composite_ntsc:
-		pipeline = "de0-lcd0-hdmi";
+		pipeline = "de0-lcd1-tve0";
 		break;
 	}
 
