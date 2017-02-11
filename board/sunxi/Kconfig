@@ -148,6 +148,7 @@ config MACH_SUN9I
 config MACH_SUN50I
 	bool "sun50i (Allwinner A64)"
 	select ARM64
+	select SUNXI_DE2
 	select SUNXI_GEN_SUN6I
 	select SUNXI_HIGH_SRAM
 	select SUPPORT_SPL
@@ -516,7 +517,7 @@ config AXP_GPIO
 
 config VIDEO
 	bool "Enable graphical uboot console on HDMI, LCD or VGA"
-	depends on !MACH_SUN8I_A83T && !MACH_SUN9I && !MACH_SUN50I
+	depends on !MACH_SUN8I_A83T && !MACH_SUN9I
 	default y
 	---help---
 	Say Y here to add support for using a cfb console on the HDMI, LCD

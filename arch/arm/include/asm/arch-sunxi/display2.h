@@ -382,6 +382,9 @@ struct sunxi_tve_reg {
 
 #define SUNXI_DE2_WH(w, h)			(((h - 1) << 16) | (w - 1))
 
+#define SUN50I_A64_DE2_MAGIC_SYSCON		0x01c00004
+#define SUN50I_A64_DE2_MAGIC_SYSCON_BIT		BIT(24)
+
 /*
  * LCDC register constants.
  */

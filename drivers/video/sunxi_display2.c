@@ -29,6 +29,12 @@
 #include <video_fb.h>
 #include "videomodes.h"
 
+#ifdef CONFIG_MACH_SUN8I_H3
+#define HDMI_CHAN_ID 0
+#else
+#define HDMI_CHAN_ID 1
+#endif
+
 DECLARE_GLOBAL_DATA_PTR;
 
 enum sunxi_monitor {
@@ -38,7 +44,7 @@ enum sunxi_monitor {
 	sunxi_monitor_composite_pal,
 	sunxi_monitor_composite_ntsc,
 };
-#define SUNXI_MONITOR_LAST sunxi_monitor_hdmi
+#define SUNXI_MONITOR_LAST sunxi_monitor_composite_ntsc
 
 struct sunxi_display {
 	GraphicDevice graphic_device;
@@ -382,6 +388,11 @@ static void sunxi_composer_init(void)
 
 	/* Clock on */
 	setbits_le32(&ccm->de_clk_cfg, CCM_DE2_CTRL_GATE);
+
+#ifdef CONFIG_MACH_SUN50I
+	clrbits_le32(SUN50I_A64_DE2_MAGIC_SYSCON,
+		     SUN50I_A64_DE2_MAGIC_SYSCON_BIT);
+#endif
 }
 
 static void sunxi_composer_mode_set(int mux, const struct ctfb_res_modes *mode,
@@ -408,7 +419,11 @@ static void sunxi_composer_mode_set(int mux, const struct ctfb_res_modes *mode,
 	u32 data;
 
 	/* enable clock */
+#if defined CONFIG_MACH_SUN8I_H3
 	setbits_le32(&de_clk_regs->rst_cfg, (mux == 0) ? 1 : 4);
+#else
+	setbits_le32(&de_clk_regs->rst_cfg, (mux == 0) ? 1 : 2);
+#endif
 	setbits_le32(&de_clk_regs->gate_cfg, (mux == 0) ? 1 : 2);
 	setbits_le32(&de_clk_regs->bus_cfg, (mux == 0) ? 1 : 2);
 
@@ -505,7 +520,7 @@ static void sunxi_composer_enable(int mux)
 /*
  * LCDC, what allwinner calls a CRTC, so timing controller and serializer.
  */
-static void sunxi_lcdc_pll_set(int dotclock, int *clk_div)
+static void sunxi_lcdc_pll_set_hdmi(int dotclock, int *clk_div)
 {
 	struct sunxi_ccm_reg * const ccm =
 		(struct sunxi_ccm_reg *)SUNXI_CCM_BASE;
@@ -550,13 +565,18 @@ static void sunxi_lcdc_pll_set(int dotclock, int *clk_div)
 	      dotclock, (clock_get_pll3() / 1000) / x,
 	      best_n, best_m, x);
 
+#ifdef CONFIG_MACH_SUN8I_H3
 	writel(CCM_TCON0_CTRL_GATE | CCM_TCON0_CTRL_M(x),
 	       &ccm->tcon0_clk_cfg);
+#else
+	writel(CCM_TCON0_CTRL_GATE | CCM_TCON0_CTRL_M(x),
+	       &ccm->tcon1_clk_cfg);
+#endif
 
 	*clk_div = x;
 }
 
-static void sunxi_lcdc_init(int num)
+static void sunxi_lcdc_chan1_init(int num)
 {
 	struct sunxi_ccm_reg * const ccm =
 		(struct sunxi_ccm_reg *)SUNXI_CCM_BASE;
@@ -658,7 +678,7 @@ static void sunxi_lcdc_tcon1_mode_set(int num,
 	       &lcdc->tcon1_timing_sync);
 
 	if (!sunxi_is_composite())
-		sunxi_lcdc_pll_set(mode->pixclock_khz, clk_div);
+		sunxi_lcdc_pll_set_hdmi(mode->pixclock_khz, clk_div);
 }
 #endif /* CONFIG_VIDEO_HDMI || CONFIG_VIDEO_COMPOSITE */
 
@@ -946,7 +966,11 @@ static void sunxi_tvencoder_enable(void)
 static void sunxi_engines_init(void)
 {
 	sunxi_composer_init();
-	sunxi_lcdc_init(sunxi_is_composite() ? 1 : 0);
+#ifdef CONFIG_MACH_SUN8I_H3
+	sunxi_lcdc_chan1_init(sunxi_is_composite() ? 1 : 0);
+#else
+	sunxi_lcdc_chan1_init(1);
+#endif
 }
 
 static void sunxi_mode_set(const struct ctfb_res_modes *mode,
@@ -960,11 +984,11 @@ static void sunxi_mode_set(const struct ctfb_res_modes *mode,
 	case sunxi_monitor_dvi:
 	case sunxi_monitor_hdmi:
 #ifdef CONFIG_VIDEO_HDMI
-		sunxi_composer_mode_set(0, mode, address);
-		sunxi_lcdc_tcon1_mode_set(0, mode, &clk_div);
+		sunxi_composer_mode_set(HDMI_CHAN_ID, mode, address);
+		sunxi_lcdc_tcon1_mode_set(HDMI_CHAN_ID, mode, &clk_div);
 		sunxi_hdmi_mode_set(mode, clk_div);
-		sunxi_composer_enable(0);
-		sunxi_lcdc_enable(0);
+		sunxi_composer_enable(HDMI_CHAN_ID);
+		sunxi_lcdc_enable(HDMI_CHAN_ID);
 		sunxi_hdmi_enable();
 #endif
 		break;
@@ -1178,7 +1202,7 @@ int sunxi_simplefb_setup(void *blob)
 		return 0;
 	case sunxi_monitor_dvi:
 	case sunxi_monitor_hdmi:
-		pipeline = "de0-lcd0-hdmi";
+		pipeline = "de0-lcd" __stringify(HDMI_CHAN_ID) "-hdmi";
 		break;
 	case sunxi_monitor_composite_pal:
 	case sunxi_monitor_composite_ntsc:
