@@ -333,6 +333,10 @@ static void mctl_set_cr(struct dram_para *para)
 	       (para->dual_rank ? MCTL_CR_DUAL_RANK : MCTL_CR_SINGLE_RANK) |
 	       MCTL_CR_PAGE_SIZE(para->page_size) |
 	       MCTL_CR_ROW_BITS(para->row_bits), &mctl_com->cr);
+#ifdef CONFIG_MACH_SUN8I_R40
+	if (para->row_bits == 16)
+		writel(MCTL_CR_R1_ENABLE_A15_FOR_R0, &mctl_com->cr_r1);
+#endif
 }
 
 static void mctl_sys_init(struct dram_para *para)

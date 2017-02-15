@@ -15,7 +15,8 @@
 
 struct sunxi_mctl_com_reg {
 	u32 cr;			/* 0x00 control register */
-	u8 res0[0x8];		/* 0x04 */
+	u32 cr_r1;		/* 0x04 control register for rank 1 */
+	u8 res0[0x4];		/* 0x08 */
 	u32 tmr;		/* 0x0c (A64 only) */
 	u32 mcr[16][2];		/* 0x10 */
 	u32 bwcr;		/* 0x90 bandwidth control register */
@@ -62,6 +63,8 @@ struct sunxi_mctl_com_reg {
 #define MCTL_CR_FOUR_BANKS	(0x0 << 2)
 #define MCTL_CR_DUAL_RANK	(0x1 << 0)
 #define MCTL_CR_SINGLE_RANK	(0x0 << 0)
+
+#define MCTL_CR_R1_ENABLE_A15_FOR_R0	(0x1 << 21)
 
 #define PROTECT_MAGIC		(0x94be6fa3)
 
