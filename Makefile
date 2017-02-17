@@ -957,7 +957,7 @@ else
 ifneq ($(CONFIG_SPL_FIT_GENERATOR),"")
 U_BOOT_ITS := u-boot.its
 $(U_BOOT_ITS): FORCE
-	$(CONFIG_SPL_FIT_GENERATOR) \
+	$(srctree)/$(CONFIG_SPL_FIT_GENERATOR) \
 	$(patsubst %,arch/$(ARCH)/dts/%.dtb,$(subst ",,$(CONFIG_OF_LIST))) > $@
 endif
 endif
