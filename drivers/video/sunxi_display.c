@@ -525,6 +525,15 @@ static void sunxi_composer_init(void)
 	struct sunxi_ccm_reg * const ccm =
 		(struct sunxi_ccm_reg *)SUNXI_CCM_BASE;
 
+#if defined(CONFIG_MACH_SUN50I)
+	u32 reg_value;
+ 
+	/* set SRAM for video use (A64 only) */
+	reg_value = readl(SUNXI_SRAMC_BASE + 0x04);
+	reg_value &= ~(0x01 << 24);
+	writel(reg_value, SUNXI_SRAMC_BASE + 0x04);
+#endif
+
 #ifndef CONFIG_MACH_SUN8I_V3S
 	clock_set_pll10(432000000);
 
@@ -669,6 +678,8 @@ static void sunxi_lcdc_pll_set(int tcon, int dotclock,
 	 * not sync to higher frequencies.
 	 */
 	for (m = min_m; m <= max_m; m++) {
+		/* TCON0 on A64 SoC do not support not-doubled clock */
+#ifndef CONFIG_MACH_SUN50I
 		n = (m * dotclock) / 3000;
 
 		if ((n >= 9) && (n <= 127)) {
@@ -685,9 +696,10 @@ static void sunxi_lcdc_pll_set(int tcon, int dotclock,
 		/* These are just duplicates */
 		if (!(m & 1))
 			continue;
+#endif
 
-		/* TCONs with DE2 do not support double clock */
-#ifndef CONFIG_SUNXI_DE2
+		/* TCON on V3s SoC does not support double clock */
+#ifndef CONFIG_MACH_SUN8I_V3S
 		n = (m * dotclock) / 6000;
 		if ((n >= 9) && (n <= 127)) {
 			value = (6000 * n) / m;
@@ -762,13 +774,21 @@ static void sunxi_lcdc_init(void)
 
 	/* Reset off */
 #ifdef CONFIG_SUNXI_GEN_SUN6I
+#ifndef CONFIG_SUNXI_DE2
 	setbits_le32(&ccm->ahb_reset1_cfg, 1 << AHB_RESET_OFFSET_LCD0);
+#else
+	setbits_le32(&ccm->ahb_reset1_cfg, 1 << AHB_RESET_OFFSET_TCON0);
+#endif
 #else
 	setbits_le32(&ccm->lcd0_ch0_clk_cfg, CCM_LCD_CH0_CTRL_RST);
 #endif
 
 	/* Clock on */
+#ifndef CONFIG_SUNXI_DE2
 	setbits_le32(&ccm->ahb_gate1, 1 << AHB_GATE_OFFSET_LCD0);
+#else
+	setbits_le32(&ccm->ahb_gate1, 1 << AHB_GATE_OFFSET_TCON0);
+#endif
 #ifdef CONFIG_VIDEO_LCD_IF_LVDS
 #ifdef CONFIG_SUNXI_GEN_SUN6I
 	setbits_le32(&ccm->ahb_reset2_cfg, 1 << AHB_RESET_OFFSET_LVDS);
@@ -909,7 +929,11 @@ static void sunxi_lcdc_tcon0_mode_set(const struct ctfb_res_modes *mode,
 #if defined CONFIG_MACH_SUN8I && defined CONFIG_VIDEO_LCD_IF_LVDS
 	for (pin = SUNXI_GPD(18); pin <= SUNXI_GPD(27); pin++) {
 #else
+#if defined CONFIG_MACH_SUN50I
+	for (pin = SUNXI_GPD(0); pin <= SUNXI_GPD(21); pin++) {
+#else
 	for (pin = SUNXI_GPD(0); pin <= SUNXI_GPD(27); pin++) {
+#endif
 #endif
 #ifdef CONFIG_VIDEO_LCD_IF_PARALLEL
 		sunxi_gpio_set_cfgpin(pin, SUNXI_GPD_LCD0);
@@ -917,7 +941,7 @@ static void sunxi_lcdc_tcon0_mode_set(const struct ctfb_res_modes *mode,
 #ifdef CONFIG_VIDEO_LCD_IF_LVDS
 		sunxi_gpio_set_cfgpin(pin, SUNXI_GPD_LVDS0);
 #endif
-#ifdef CONFIG_VIDEO_LCD_PANEL_EDP_4_LANE_1620M_VIA_ANX9804
+#ifdef CONFIG_VIDEO_LCD_PANEL_EDP_1620M_VIA_ANX
 		sunxi_gpio_set_drv(pin, 3);
 #endif
 	}
@@ -1346,7 +1370,7 @@ static void sunxi_engines_init(void)
 static void sunxi_mode_set(const struct ctfb_res_modes *mode,
 			   unsigned int address)
 {
-	int __maybe_unused clk_div, clk_double;
+	int __maybe_unused clk_div, clk_double, reset_pin;
 
 	switch (sunxi_display.monitor) {
 	case sunxi_monitor_none:
@@ -1364,17 +1388,6 @@ static void sunxi_mode_set(const struct ctfb_res_modes *mode,
 		break;
 	case sunxi_monitor_lcd:
 		sunxi_lcdc_panel_enable();
-		if (IS_ENABLED(CONFIG_VIDEO_LCD_PANEL_EDP_4_LANE_1620M_VIA_ANX9804)) {
-			/*
-			 * The anx9804 needs 1.8V from eldo3, we do this here
-			 * and not via CONFIG_AXP_ELDO3_VOLT from board_init()
-			 * to avoid turning this on when using hdmi output.
-			 */
-			axp_set_eldo(3, 1800);
-			anx9804_init(CONFIG_VIDEO_LCD_I2C_BUS, 4,
-				     ANX9804_DATA_RATE_1620M,
-				     sunxi_display.depth);
-		}
 		if (IS_ENABLED(CONFIG_VIDEO_LCD_HITACHI_TX18D42VM)) {
 			mdelay(50); /* Wait for lcd controller power on */
 			hitachi_tx18d42vm_init();
@@ -1391,6 +1404,38 @@ static void sunxi_mode_set(const struct ctfb_res_modes *mode,
 		sunxi_lcdc_enable();
 #ifdef CONFIG_VIDEO_LCD_SSD2828
 		sunxi_ssd2828_init(mode);
+#endif
+#ifdef CONFIG_VIDEO_LCD_PANEL_EDP_1620M_VIA_ANX
+		/* Different A64 boards uses different LDOs to power
+		 * up ANX bridge chip, so we assume it's enabled by
+		 * other ways (ATF, SPL, etc)
+		 */
+#ifndef CONFIG_MACH_SUN50I
+		/*
+		 * The anx9804 needs 1.8V from eldo3, we do this here
+		 * and not via CONFIG_AXP_ELDO3_VOLT from board_init()
+		 * to avoid turning this on when using hdmi output.
+		 */
+		axp_set_eldo(3, 1800);
+#else
+		/*
+		 * Re-reset ANX chip after TCON is ready, otherwise it
+		 * may refuse to work.
+		 */
+		reset_pin = sunxi_name_to_gpio(CONFIG_VIDEO_LCD_RESET);
+		if (reset_pin >= 0) {
+			printf("Reseting ANX chip via reset GPIO...\n");
+			gpio_request(reset_pin, "lcd_reset");
+			gpio_direction_output(reset_pin, 0);
+			mdelay(500);
+			gpio_direction_output(reset_pin, 1);
+		} else {
+			printf("Error: ANX bridge chips need a reset line!\n");
+		}
+#endif
+		anx9804_init(CONFIG_VIDEO_LCD_I2C_BUS, CONFIG_ANX_LANE_NUM,
+			     ANX9804_DATA_RATE_1620M,
+			     sunxi_display.depth);
 #endif
 		sunxi_lcdc_backlight_enable();
 		break;

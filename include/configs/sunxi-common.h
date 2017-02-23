@@ -237,6 +237,12 @@
 #endif
 
 #if defined CONFIG_VIDEO_LCD_PANEL_I2C && !(defined CONFIG_SPL_BUILD)
+#ifndef CONFIG_SYS_I2C
+#define CONFIG_SYS_I2C
+#endif
+#ifndef CONFIG_SYS_I2C_SPEED
+#define CONFIG_SYS_I2C_SPEED		400000
+#endif
 #define CONFIG_SYS_I2C_SOFT
 #define CONFIG_SYS_I2C_SOFT_SPEED	50000
 #define CONFIG_SYS_I2C_SOFT_SLAVE	0x00
@@ -385,6 +391,7 @@ extern int soft_i2c_gpio_scl;
  * Scripts, PXE and DTBs should go afterwards, leaving the rest for the initrd.
  * Align the initrd to a 2MB page.
  */
+#define BOOTM_SIZE      __stringify(0xa000000)
 #define KERNEL_ADDR_R	__stringify(SDRAM_OFFSET(0080000))
 #define FDT_ADDR_R	__stringify(SDRAM_OFFSET(FA00000))
 #define SCRIPT_ADDR_R	__stringify(SDRAM_OFFSET(FC00000))

@@ -149,6 +149,7 @@ config MACH_SUN50I
 	bool "sun50i (Allwinner A64)"
 	select ARM64
 	select SUNXI_GEN_SUN6I
+	select SUNXI_DE2
 
 endchoice
 
@@ -497,7 +498,7 @@ config AXP_GPIO
 
 config VIDEO
 	bool "Enable graphical uboot console on HDMI, LCD or VGA"
-	depends on !MACH_SUN8I_A83T && !MACH_SUN8I_H3 && !MACH_SUN9I && !MACH_SUN50I
+	depends on !MACH_SUN8I_A83T && !MACH_SUN8I_H3 && !MACH_SUN9I
 	default y
 	---help---
 	Say Y here to add support for using a cfb console on the HDMI, LCD
@@ -506,7 +507,7 @@ config VIDEO
 
 config VIDEO_HDMI
 	bool "HDMI output support"
-	depends on VIDEO && !MACH_SUN8I
+	depends on VIDEO && !MACH_SUN8I && !MACH_SUN50I
 	default y
 	---help---
 	Say Y here to add support for outputting video over HDMI.
@@ -665,14 +666,24 @@ config VIDEO_LCD_PANEL_MIPI_4_LANE_513_MBPS_VIA_SSD2828
 	---help---
 	7.85" 768x1024 LCD panels, such as LG LP079X01 or AUO B079XAN01.0
 
-config VIDEO_LCD_PANEL_EDP_4_LANE_1620M_VIA_ANX9804
-	bool "eDP 4-lane, 1.62G LCD panel via ANX9804 bridge chip"
+config VIDEO_LCD_PANEL_EDP_1620M_VIA_ANX
+	bool "eDP 4-lane, 1.62G LCD panel via ANX98xx or ANX63xx bridge chip"
 	select VIDEO_LCD_ANX9804
 	select VIDEO_LCD_IF_PARALLEL
 	select VIDEO_LCD_PANEL_I2C
 	---help---
 	Select this for eDP LCD panels with 4 lanes running at 1.62G,
-	connected via an ANX9804 bridge chip.
+	connected via an ANX98xx or ANX63xx bridge chip.
+
+if VIDEO_LCD_PANEL_EDP_1620M_VIA_ANX
+
+config ANX_LANE_NUM
+	int "ANX chip lanes in use"
+	default 4
+	---help---
+	Write the number of lanes in use here.
+
+endif
 
 config VIDEO_LCD_PANEL_HITACHI_TX18D42VM
 	bool "Hitachi tx18d42vm LCD panel"
