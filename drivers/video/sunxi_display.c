@@ -1389,12 +1389,18 @@ static void sunxi_mode_set(const struct ctfb_res_modes *mode,
 	case sunxi_monitor_lcd:
 		sunxi_lcdc_panel_enable();
 #ifdef CONFIG_VIDEO_LCD_PANEL_EDP_1620M_VIA_ANX
+#ifndef CONFIG_MACH_SUN50I
 		/*
-		 * The anx9804 needs 1.8V from eldo3, we do this here
-		 * and not via CONFIG_AXP_ELDO3_VOLT from board_init()
-		 * to avoid turning this on when using hdmi output.
+		 * For A31 boards the anx9804 needs 1.8V from eldo3,
+		 * we do this here and not via CONFIG_AXP_ELDO3_VOLT
+		 * from board_init() to avoid turning this on when
+		 * using hdmi output.
+		 * For A64 boards different boards use different LDOs
+		 * to power up the bridge chip, so we assume it's
+		 * enabled by other ways (ATF, SPL, etc).
 		 */
 		axp_set_eldo(3, 1800);
+#endif
 		anx9804_init(CONFIG_VIDEO_LCD_I2C_BUS, CONFIG_ANX_LANE_NUM,
 			     ANX9804_DATA_RATE_1620M,
 			     sunxi_display.depth);
