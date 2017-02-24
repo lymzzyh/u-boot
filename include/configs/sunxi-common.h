@@ -385,6 +385,7 @@ extern int soft_i2c_gpio_scl;
  * Scripts, PXE and DTBs should go afterwards, leaving the rest for the initrd.
  * Align the initrd to a 2MB page.
  */
+#define BOOTM_SIZE      __stringify(0xa000000)
 #define KERNEL_ADDR_R	__stringify(SDRAM_OFFSET(0080000))
 #define FDT_ADDR_R	__stringify(SDRAM_OFFSET(FA00000))
 #define SCRIPT_ADDR_R	__stringify(SDRAM_OFFSET(FC00000))
