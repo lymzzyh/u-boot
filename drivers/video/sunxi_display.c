@@ -525,6 +525,15 @@ static void sunxi_composer_init(void)
 	struct sunxi_ccm_reg * const ccm =
 		(struct sunxi_ccm_reg *)SUNXI_CCM_BASE;
 
+#if defined(CONFIG_MACH_SUN50I)
+	u32 reg_value;
+
+	/* set SRAM for video use (A64 only) */
+	reg_value = readl(SUNXI_SRAMC_BASE + 0x04);
+	reg_value &= ~(0x01 << 24);
+	writel(reg_value, SUNXI_SRAMC_BASE + 0x04);
+#endif
+
 #ifndef CONFIG_MACH_SUN8I_V3S
 	clock_set_pll10(432000000);
 
@@ -669,6 +678,8 @@ static void sunxi_lcdc_pll_set(int tcon, int dotclock,
 	 * not sync to higher frequencies.
 	 */
 	for (m = min_m; m <= max_m; m++) {
+		/* TCON0 on A64 SoC do not support not-doubled clock */
+#ifndef CONFIG_MACH_SUN50I
 		n = (m * dotclock) / 3000;
 
 		if ((n >= 9) && (n <= 127)) {
@@ -685,9 +696,10 @@ static void sunxi_lcdc_pll_set(int tcon, int dotclock,
 		/* These are just duplicates */
 		if (!(m & 1))
 			continue;
+#endif
 
-		/* TCONs with DE2 do not support double clock */
-#ifndef CONFIG_SUNXI_DE2
+		/* TCON on V3s SoC does not support double clock */
+#ifndef CONFIG_MACH_SUN8I_V3S
 		n = (m * dotclock) / 6000;
 		if ((n >= 9) && (n <= 127)) {
 			value = (6000 * n) / m;
@@ -762,13 +774,21 @@ static void sunxi_lcdc_init(void)
 
 	/* Reset off */
 #ifdef CONFIG_SUNXI_GEN_SUN6I
+#ifndef CONFIG_SUNXI_DE2
 	setbits_le32(&ccm->ahb_reset1_cfg, 1 << AHB_RESET_OFFSET_LCD0);
+#else
+	setbits_le32(&ccm->ahb_reset1_cfg, 1 << AHB_RESET_OFFSET_TCON0);
+#endif
 #else
 	setbits_le32(&ccm->lcd0_ch0_clk_cfg, CCM_LCD_CH0_CTRL_RST);
 #endif
 
 	/* Clock on */
+#ifndef CONFIG_SUNXI_DE2
 	setbits_le32(&ccm->ahb_gate1, 1 << AHB_GATE_OFFSET_LCD0);
+#else
+	setbits_le32(&ccm->ahb_gate1, 1 << AHB_GATE_OFFSET_TCON0);
+#endif
 #ifdef CONFIG_VIDEO_LCD_IF_LVDS
 #ifdef CONFIG_SUNXI_GEN_SUN6I
 	setbits_le32(&ccm->ahb_reset2_cfg, 1 << AHB_RESET_OFFSET_LVDS);
