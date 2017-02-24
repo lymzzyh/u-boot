@@ -929,7 +929,11 @@ static void sunxi_lcdc_tcon0_mode_set(const struct ctfb_res_modes *mode,
 #if defined CONFIG_MACH_SUN8I && defined CONFIG_VIDEO_LCD_IF_LVDS
 	for (pin = SUNXI_GPD(18); pin <= SUNXI_GPD(27); pin++) {
 #else
+#if defined CONFIG_MACH_SUN50I
+	for (pin = SUNXI_GPD(0); pin <= SUNXI_GPD(21); pin++) {
+#else
 	for (pin = SUNXI_GPD(0); pin <= SUNXI_GPD(27); pin++) {
+#endif
 #endif
 #ifdef CONFIG_VIDEO_LCD_IF_PARALLEL
 		sunxi_gpio_set_cfgpin(pin, SUNXI_GPD_LCD0);
