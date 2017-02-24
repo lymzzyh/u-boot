@@ -298,7 +298,8 @@ dtb-$(CONFIG_MACH_SUN50I_H5) += \
 	sun50i-h5-orangepi-pc2.dtb
 dtb-$(CONFIG_MACH_SUN50I) += \
 	sun50i-a64-pine64-plus.dtb \
-	sun50i-a64-pine64.dtb
+	sun50i-a64-pine64.dtb \
+	sun50i-a64-pinebook.dtb
 dtb-$(CONFIG_MACH_SUN9I) += \
 	sun9i-a80-optimus.dtb \
 	sun9i-a80-cubieboard4.dtb
