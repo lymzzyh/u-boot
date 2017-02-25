@@ -1657,7 +1657,11 @@ void *video_hw_init(void)
 		      gd->bd->bi_dram[0].size - sunxi_display.fb_size;
 	sunxi_engines_init();
 
+#if defined(CONFIG_MACH_SUN50I)
+	fb_dma_addr = gd->fb_base;
+#else
 	fb_dma_addr = gd->fb_base - CONFIG_SYS_SDRAM_BASE;
+#endif
 	sunxi_display.fb_addr = gd->fb_base;
 	if (overscan_offset) {
 		fb_dma_addr += 0x1000 - (overscan_offset & 0xfff);
