@@ -261,6 +261,8 @@ static void mctl_set_cr(struct dram_para *para)
 	writel(MCTL_CR_BL8 | MCTL_CR_2T | MCTL_CR_INTERLEAVED |
 #if defined CONFIG_SUNXI_DRAM_DDR3
 	       MCTL_CR_DDR3 |
+#elif defined CONFIG_SUNXI_DRAM_DDR2
+	       MCTL_CR_DDR2 |
 #else
 #error Unsupported DRAM type!
 #endif

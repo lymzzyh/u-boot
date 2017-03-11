@@ -196,6 +196,9 @@ if SUNXI_DRAM_DW
 config SUNXI_DRAM_DDR3
 	bool
 
+config SUNXI_DRAM_DDR2
+	bool
+
 choice
 	prompt "DRAM Type and Timing"
 	default SUNXI_DRAM_DDR3_1333
