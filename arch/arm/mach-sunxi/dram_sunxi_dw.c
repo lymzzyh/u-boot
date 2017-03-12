@@ -603,7 +603,7 @@ unsigned long sunxi_dram_init(void)
 			(struct sunxi_mctl_ctl_reg *)SUNXI_DRAM_CTL0_BASE;
 
 	struct dram_para para = {
-		.dual_rank = 0,
+		.dual_rank = 1,
 		.bus_full_width = 1,
 		.row_bits = 15,
 		.bank_bits = 3,
