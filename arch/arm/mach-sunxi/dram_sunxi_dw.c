@@ -289,11 +289,13 @@ static void mctl_set_cr(struct dram_para *para)
 	struct sunxi_mctl_com_reg * const mctl_com =
 			(struct sunxi_mctl_com_reg *)SUNXI_DRAM_COM_BASE;
 
-	writel(MCTL_CR_BL8 | MCTL_CR_2T | MCTL_CR_INTERLEAVED |
+	writel(MCTL_CR_BL8 | MCTL_CR_INTERLEAVED |
 #if defined CONFIG_SUNXI_DRAM_DDR3
-	       MCTL_CR_DDR3 |
+	       MCTL_CR_DDR3 | MCTL_CR_2T |
 #elif defined CONFIG_SUNXI_DRAM_DDR2
-	       MCTL_CR_DDR2 |
+	       MCTL_CR_DDR2 | MCTL_CR_2T |
+#elif defined CONFIG_SUNXI_DRAM_LPDDR3
+	       MCTL_CR_LPDDR3 | MCTL_CR_1T |
 #else
 #error Unsupported DRAM type!
 #endif
