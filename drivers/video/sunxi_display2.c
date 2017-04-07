@@ -29,7 +29,7 @@
 #include <video_fb.h>
 #include "videomodes.h"
 
-#ifdef CONFIG_MACH_SUN8I_H3
+#ifdef CONFIG_MACH_SUNXI_H3_H5
 #define HDMI_CHAN_ID 0
 #else
 #define HDMI_CHAN_ID 1
@@ -419,7 +419,7 @@ static void sunxi_composer_mode_set(int mux, const struct ctfb_res_modes *mode,
 	u32 data;
 
 	/* enable clock */
-#if defined CONFIG_MACH_SUN8I_H3
+#if defined CONFIG_MACH_SUNXI_H3_H5
 	setbits_le32(&de_clk_regs->rst_cfg, (mux == 0) ? 1 : 4);
 #else
 	setbits_le32(&de_clk_regs->rst_cfg, (mux == 0) ? 1 : 2);
@@ -565,7 +565,7 @@ static void sunxi_lcdc_pll_set_hdmi(int dotclock, int *clk_div)
 	      dotclock, (clock_get_pll3() / 1000) / x,
 	      best_n, best_m, x);
 
-#ifdef CONFIG_MACH_SUN8I_H3
+#ifdef CONFIG_MACH_SUNXI_H3_H5
 	writel(CCM_TCON0_CTRL_GATE | CCM_TCON0_CTRL_M(x),
 	       &ccm->tcon0_clk_cfg);
 #else
@@ -966,7 +966,7 @@ static void sunxi_tvencoder_enable(void)
 static void sunxi_engines_init(void)
 {
 	sunxi_composer_init();
-#ifdef CONFIG_MACH_SUN8I_H3
+#ifdef CONFIG_MACH_SUNXI_H3_H5
 	sunxi_lcdc_chan1_init(sunxi_is_composite() ? 1 : 0);
 #else
 	sunxi_lcdc_chan1_init(1);
