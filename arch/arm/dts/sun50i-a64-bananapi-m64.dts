@@ -53,6 +53,7 @@
 	aliases {
 		serial0 = &uart0;
 		serial1 = &uart1;
+		ethernet0 = &emac;
 	};
 
 	chosen {
@@ -64,6 +65,18 @@
 		regulator-name = "vcc3v3";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
+	};
+};
+
+&emac {
+	pinctrl-names = "default";
+	pinctrl-0 = <&rgmii_pins>;
+	phy-mode = "rgmii";
+	phy = <&phy1>;
+	status = "okay";
+
+	phy1: ethernet-phy@1 {
+		reg = <1>;
 	};
 };
 
