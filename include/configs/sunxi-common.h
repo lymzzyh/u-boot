@@ -286,6 +286,10 @@ extern int soft_i2c_gpio_scl;
 
 #endif /* CONFIG_VIDEO */
 
+#ifdef CONFIG_VIDEO_DE2
+#define CONFIG_VIDEO_DT_SIMPLEFB
+#endif
+
 /* Ethernet support */
 #ifdef CONFIG_SUNXI_EMAC
 #define CONFIG_PHY_ADDR		1
