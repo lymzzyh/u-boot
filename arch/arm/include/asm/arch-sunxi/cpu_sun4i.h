@@ -179,6 +179,8 @@ defined(CONFIG_MACH_SUN50I)
     !defined CONFIG_MACH_SUN8I_A83T && \
     !defined CONFIG_MACH_SUN8I_R40
 #define SUNXI_CPUCFG_BASE		0x01f01c00
+#elif defined CONFIG_MACH_SUN8I_A83T
+#define SUNXI_R_CPUCFG_BASE		0x01f01c00
 #endif
 
 #define SUNXI_R_TWI_BASE		0x01f02400
