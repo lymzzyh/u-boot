@@ -220,16 +220,16 @@ struct __packed sunxi_prcm_reg {
 	u8 res5[0x3c];		/* 0x0b4 */
 	u32 clk_outd;		/* 0x0f0 */
 	u8 res6[0xc];		/* 0x0f4 */
-	u32 cpu_pwroff;		/* 0x100 */
-	u8 res7[0xc];		/* 0x104 */
+	u32 cpu_pwroff[2];	/* 0x100 */
+	u8 res7[0x8];		/* 0x108 */
 	u32 vdd_sys_pwroff;	/* 0x110 */
 	u8 res8[0x4];		/* 0x114 */
 	u32 gpu_pwroff;		/* 0x118 */
 	u8 res9[0x4];		/* 0x11c */
 	u32 vdd_pwr_reset;	/* 0x120 */
 	u8 res10[0x1c];		/* 0x124 */
-	u32 cpu_pwr_clamp[4];	/* 0x140 but first one is actually unused */
-	u8 res11[0x30];		/* 0x150 */
+	u32 cpu_pwr_clamp[2][4];/* 0x140 but first one is actually unused */
+	u8 res11[0x20];		/* 0x160 */
 	u32 dram_pwr;		/* 0x180 */
 	u8 res12[0xc];		/* 0x184 */
 	u32 dram_tst;		/* 0x190 */

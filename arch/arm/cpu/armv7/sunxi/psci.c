@@ -144,7 +144,7 @@ static void __secure sunxi_cpu_set_power(int cpu, bool on)
 	struct sunxi_prcm_reg *prcm =
 		(struct sunxi_prcm_reg *)SUNXI_PRCM_BASE;
 
-	sunxi_power_switch(&prcm->cpu_pwr_clamp[cpu], &prcm->cpu_pwroff,
+	sunxi_power_switch(&prcm->cpu_pwr_clamp[0][cpu], &prcm->cpu_pwroff[0],
 			   on, cpu);
 }
 #endif /* CONFIG_MACH_SUN7I */
