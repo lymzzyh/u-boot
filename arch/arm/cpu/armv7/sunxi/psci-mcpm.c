@@ -115,6 +115,11 @@ static void __secure clamp_set(u32 *clamp)
 static void __secure sunxi_core_power_switch(u32 *clamp, u32 *pwroff,
 					     bool on, int cpu)
 {
+#if defined CONFIG_MACH_SUN8I_A83T
+	/* A83T Rev.B has its CPU0 power gate bit at bit 4, not bit 0 */
+	if (sunxi_get_revision() == 1 && cpu == 0)
+		cpu = 4;
+#endif
 	if (on) {
 		/* Release power clamp */
 		clamp_release(clamp);
@@ -181,12 +186,6 @@ int __secure psci_cpu_on(u32 __always_unused unused, u32 mpidr, u32 pc)
 	u32 cluster = (mpidr >> 8) & 0x1;
 	u32 cpu = mpidr & 0x3;
 	u32 cpuid = cpu | (cluster << 2);
-
-#ifdef CONFIG_MACH_SUN8I_A83T
-	/* TODO: The Cluster 0 CPU 1 works differently on A83T revisions */
-	if (cpu == 0 && cluster == 1)
-		return ARM_PSCI_RET_INVAL;
-#endif
 
 	/* store target PC */
 	psci_save_target_pc(cpuid, pc);
