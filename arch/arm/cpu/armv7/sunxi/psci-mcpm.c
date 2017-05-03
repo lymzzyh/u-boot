@@ -182,9 +182,11 @@ int __secure psci_cpu_on(u32 __always_unused unused, u32 mpidr, u32 pc)
 	u32 cpu = mpidr & 0x3;
 	u32 cpuid = cpu | (cluster << 2);
 
-	/* TODO We don't support multi-cluster yet */
-	if (cluster > 0)
+#ifdef CONFIG_MACH_SUN8I_A83T
+	/* TODO: The Cluster 0 CPU 1 works differently on A83T revisions */
+	if (cpu == 0 && cluster == 1)
 		return ARM_PSCI_RET_INVAL;
+#endif
 
 	/* store target PC */
 	psci_save_target_pc(cpuid, pc);
