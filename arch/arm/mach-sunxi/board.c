@@ -19,8 +19,10 @@
 #endif
 #include <asm/gpio.h>
 #include <asm/io.h>
+#include <asm/arch/cci-400.h>
 #include <asm/arch/clock.h>
 #include <asm/arch/gpio.h>
+#include <asm/arch/prcm.h>
 #include <asm/arch/spl.h>
 #include <asm/arch/sys_proto.h>
 #include <asm/arch/timer.h>
@@ -153,6 +155,43 @@ static int spl_board_load_image(struct spl_image_info *spl_image,
 SPL_LOAD_IMAGE_METHOD("FEL", 0, BOOT_DEVICE_BOARD, spl_board_load_image);
 #endif
 
+#if defined CONFIG_MACH_SUN8I_A83T && !defined CONFIG_SPL_BUILD
+static int cluster1_power_up()
+{
+	struct sunxi_prcm_reg *prcm =
+		(struct sunxi_prcm_reg *)SUNXI_PRCM_BASE;
+	clrbits_le32(&prcm->cpu_pwroff[1], 0x1);
+
+	return 0;
+}
+
+static int cci_init(void)
+{
+	struct cci400_control *cci = (struct cci400_control *)SUNXI_CCI400_BASE;
+	uint32_t snoop_ctl;
+
+	/* Set up cluster 0 CCI port */
+	snoop_ctl = readl(&cci->snoop_ctrl_cluster0);
+	snoop_ctl |= CCI400_DVM_MESSAGE_REQ_EN | CCI400_SNOOP_REQ_EN;
+	writel(snoop_ctl, &cci->snoop_ctrl_cluster0);
+
+	/* Wait for snoop control change to take effect */
+	while (readl(&cci->status) & 0x1);
+
+	/* Set up cluster 1 CCI port */
+	snoop_ctl = readl(&cci->snoop_ctrl_cluster1);
+	snoop_ctl |= CCI400_DVM_MESSAGE_REQ_EN | CCI400_SNOOP_REQ_EN;
+	writel(snoop_ctl, &cci->snoop_ctrl_cluster1);
+
+	/* Wait for snoop control change to take effect */
+	while (readl(&cci->status) & 0x1);
+
+	/* Synchronize CCI enable */
+	__asm__ volatile ("dsb\n");
+	return 0;
+}
+#endif
+
 void s_init(void)
 {
 	/*
@@ -208,6 +247,12 @@ void s_init(void)
 	i2c_init_board();
 #endif
 	eth_init_board();
+
+#if defined CONFIG_MACH_SUN8I_A83T && !defined CONFIG_SPL_BUILD
+	/* Initialize multi-cluster SMP */
+	cluster1_power_up();
+	cci_init();
+#endif
 }
 
 #ifdef CONFIG_SPL_BUILD
