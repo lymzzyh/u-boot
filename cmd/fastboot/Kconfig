@@ -8,6 +8,10 @@ if FASTBOOT
 
 config USB_FUNCTION_FASTBOOT
 	bool "Enable USB fastboot gadget"
+	default y
+	select USB_GADGET_DOWNLOAD
+	imply ANDROID_BOOT_IMAGE
+	imply CMD_FASTBOOT
 	help
 	  This enables the USB part of the fastboot gadget.
 
