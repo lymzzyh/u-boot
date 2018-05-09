@@ -60,6 +60,15 @@ int sunxi_gpio_set_drv(u32 pin, u32 val)
 
 	return 0;
 }
+int spl_sunxi_gpio_set_value(u32 pin, u32 val)
+{
+	u32 bank = GPIO_BANK(pin);
+	u32 offset = GPIO_NUM(pin);
+	struct sunxi_gpio *pio = BANK_TO_GPIO(bank);
+	clrsetbits_le32(&pio->dat, 0x1 << offset, val << offset);
+
+	return 0;
+}
 
 int sunxi_gpio_set_pull(u32 pin, u32 val)
 {
